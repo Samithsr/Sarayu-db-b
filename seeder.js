@@ -7,7 +7,7 @@ const bcrypt = require("bcryptjs");
 dotenv.config();
 
 const admin_data = JSON.parse(
-  fs.readFileSync("../data/admin-data.json", "utf-8")
+  fs.readFileSync("./data/admin-data.json", "utf-8")
 );
 
 connectDB();
