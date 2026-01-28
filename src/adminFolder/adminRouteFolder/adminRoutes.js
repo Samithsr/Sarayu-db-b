@@ -1,10 +1,17 @@
 const express = require("express");
 const router = express.Router();
+
+// Import authentication functions from auth.js
 const {
   register,
   login,
   logout,
   getMe,
+  forgotPassword
+} = require("../../../controller/auth");
+
+// Import user management functions from adminController
+const {
   getUsers,
   getUser,
   updateUser,
@@ -17,6 +24,7 @@ const { protect, authorize } = require("../../../middleware/auth");
 // Public routes
 router.post("/register", register);
 router.post("/login", login);
+router.post("/forgotpassword", forgotPassword);
 
 // Private routes
 router.post("/logout", protect, logout);
