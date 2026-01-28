@@ -29,7 +29,7 @@ const insertData = async () => {
       })
     );
     
-    // Use insertMany to bypass pre-save middleware
+    // Insert admin users
     await User.insertMany(adminUsers);
     console.log("Admin data insertion successful!");
   } catch (error) {

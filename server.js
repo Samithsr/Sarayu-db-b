@@ -6,6 +6,8 @@ const session = require("express-session");
 
 const errorHandler = require("./middleware/error");
 const connectDB = require("./config/db");
+const redisClient = require("./config/redis");
+const RedisSessionStore = require("./config/redisSessionStore");
 const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
 
 dotenv.config();
@@ -17,9 +19,10 @@ app.use(express.json());
 app.use(cors());
 app.use(morgan("dev"));
 
-// Session middleware
+// Session middleware with Redis
 app.use(
   session({
+    store: new RedisSessionStore(),
     secret: process.env.JWT_SECRET || "fallbacksecret",
     resave: false,
     saveUninitialized: false,
@@ -28,6 +31,7 @@ app.use(
       // maxAge: 1000 * 60 * 60 * 24, // 1 day
       maxAge: 1000 * 5, // 30 days
     },
+    name: 'sessionId' // Custom session name
   })
 );
 
