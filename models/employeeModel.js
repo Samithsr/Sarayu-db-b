@@ -25,12 +25,14 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       required: [true, "Company is required"],
     },
-    topics: [{
+    topics: {
       type: String,
-    }],
-    graphwhitlist: [{
+      default: "",
+    },
+    graphwhitlist: {
       type: String,
-    }],
+      default: "",
+    },
     layout: {
       type: String,
       default: "default",
