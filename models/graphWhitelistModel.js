@@ -3,8 +3,7 @@ const mongoose = require("mongoose");
 const graphWhitelistSchema = new mongoose.Schema(
   {
     employee: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
+      type: String,
       required: [true, "Employee reference is required"],
     },
     rows: {
