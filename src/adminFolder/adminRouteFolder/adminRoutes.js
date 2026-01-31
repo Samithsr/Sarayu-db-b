@@ -24,7 +24,6 @@ const {
   deleteAnyEmployeeCompany,
   getAllManager,
   deleteManager,
-  getAllSupervisorOfSameCompany,
   getAllEmployeesOfSameCompany,
   getAllDeviceConfig,
   getAllUserTopics
@@ -46,8 +45,8 @@ router.post("/logout", protect, logout);
 router.get("/me", protect, getMe);
 
 // Role-based routes
-router.get("/users", protect, authorize("manager", "supervisor"), getUsers);
-router.get("/users/:id", protect, authorize("manager", "supervisor"), getUser);
+router.get("/users", protect, authorize("manager"), getUsers);
+router.get("/users/:id", protect, authorize("manager"), getUser);
 router.put("/users/:id", protect, authorize("manager"), updateUser);
 router.delete("/users/:id", protect, authorize("manager"), deleteUser);
 
@@ -63,9 +62,6 @@ router.delete("/deleteAnyEmployee/:id", protect, authorize("admin"), deleteAnyEm
 // Manager routes
 router.get("/getallmanager/:companyId", protect, authorize("admin"), getAllManager);
 router.delete("/manager/:id", protect, authorize("admin"), deleteManager);
-
-// Supervisor routes
-router.get("/supervisor/getAllSupervisorOfSameCompany/:companyId", protect, authorize("admin"), getAllSupervisorOfSameCompany);
 
 // Employee routes
 router.get("/employee/getAllEmployeesOfSameCompany/:companyId", protect, authorize("admin"), getAllEmployeesOfSameCompany);

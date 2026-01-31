@@ -15,7 +15,7 @@
         "name": "Jane Smith",
         "email": "jane.smith@gmail.com",
         "password": "Password123",
-        "role": "supervisor"
+        "role": "manager"
       },
       {
         "name": "Michael Brown",
@@ -39,7 +39,7 @@
         "name": "Olivia Martinez",
         "email": "olivia.martinez@gmail.com",
         "password": "Password123",
-        "role": "supervisor"
+        "role": "manager"
       },
       {
         "name": "James Anderson",
@@ -63,6 +63,6 @@
         "name": "Ava Moore",
         "email": "ava.moore@gmail.com",
         "password": "Password123",
-        "role": "supervisor"
+        "role": "manager"
       }
     ]

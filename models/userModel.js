@@ -23,8 +23,8 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ["manager", "supervisor", "employee"],
-        message: "Role must be either manager, supervisor, or employee",
+        values: ["admin", "manager", "employee"],
+        message: "Role must be either admin, manager or employee",
       },
       default: "employee",
     },
@@ -35,13 +35,12 @@ const userSchema = new mongoose.Schema(
 );
 
 // Pre-save middleware to hash the password before saving to database
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    return next();
+    return;
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 userSchema.methods.getToken = function () {

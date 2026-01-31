@@ -57,11 +57,6 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    supervisor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Supervisor",
-      required: [true, "Supervisor assignment is required"],
-    },
     createdAt: {
       type: Date,
       default: Date.now,

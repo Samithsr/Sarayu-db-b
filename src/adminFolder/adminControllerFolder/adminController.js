@@ -3,7 +3,6 @@ const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 const Company = require("../../../models/company-model");
 const Manager = require("../../../models/managerModel.js");
-const Supervisor = require("../../../models/supervisorModel.js");
 const Employee = require("../../../models/employeeModel.js");
 const Admin = require("../../../models/adminModel.js");
 const Topics = require("../../../models/topicsModel.js");
@@ -106,30 +105,17 @@ exports.deleteCompany = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Delete any user (manager/supervisor/employee)
+// @desc    Delete any user (manager/employee)
 // @route   DELETE /api/v1/auth/deleteAnyEmployee/:id
 // @access  Private (admin)
 exports.deleteAnyEmployeeCompany = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   
   const manager = await Manager.findById(id);
-  const supervisor = await Supervisor.findById(id);
   const employee = await Employee.findById(id);
   
   if (manager) {
     await manager.deleteOne();
-    return res.status(200).json({
-      success: true,
-      data: [],
-    });
-  }
-  
-  if (supervisor) {
-    await Employee.updateMany(
-      { supervisor: supervisor.id },
-      { $unset: { supervisor: "" } }
-    );
-    await supervisor.deleteOne();
     return res.status(200).json({
       success: true,
       data: [],
@@ -181,24 +167,6 @@ exports.deleteManager = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get all supervisors of a company
-// @route   GET /api/v1/auth/supervisor/getAllSupervisorOfSameCompany/:companyId
-// @access  Private (admin)
-exports.getAllSupervisorOfSameCompany = asyncHandler(async (req, res, next) => {
-  const { companyId } = req.params;
-  
-  const supervisors = await Supervisor.find({ company: companyId })
-    .populate("company")
-    .populate("manager")
-    .populate("employees");
-  
-  res.status(200).json({
-    success: true,
-    count: supervisors.length,
-    data: supervisors,
-  });
-});
-
 // @desc    Get all employees of a company
 // @route   GET /api/v1/auth/employee/getAllEmployeesOfSameCompany/:companyId
 // @access  Private (admin)
@@ -206,8 +174,7 @@ exports.getAllEmployeesOfSameCompany = asyncHandler(async (req, res, next) => {
   const { companyId } = req.params;
   
   const employees = await Employee.find({ company: companyId })
-    .populate("company")
-    .populate("supervisor");
+    .populate("company");
   
   res.status(200).json({ success: true, data: employees });
 });

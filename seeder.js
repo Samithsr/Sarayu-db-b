@@ -1,39 +1,36 @@
 const connectDB = require("./config/db");
 const User = require("./models/userModel");
+const MqttMessage = require("./models/topicsModel");
 const dotenv = require("dotenv");
 const fs = require("fs");
-const bcrypt = require("bcryptjs");
 
 dotenv.config();
 
-const admin_data = JSON.parse(
+// const user_data = JSON.parse(fs.readFileSync("./data/user-data.json", "utf-8"));
+// const support_data = JSON.parse(
+//   fs.readFileSync("./data/support-data.json", "utf-8")
+// );
+const user_data = JSON.parse(
   fs.readFileSync("./data/admin-data.json", "utf-8")
 );
+// const topics_data = JSON.parse(
+//   fs.readFileSync("./data/topics-data.json", "utf-8")
+// );
 
 connectDB();
 
 const insertData = async () => {
   try {
-    // Insert admin data with manager role and hashed password
-    const adminUsers = await Promise.all(
-      admin_data.map(async (admin) => {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(admin.password, salt);
-        
-        return {
-          name: admin.name,
-          email: admin.email,
-          password: hashedPassword,
-          role: "manager"
-        };
-      })
-    );
+    // Add manager role to the data before inserting
+    const adminDataWithRole = user_data.map(user => ({
+      ...user,
+      role: "manager"
+    }));
     
-    // Insert admin users
-    await User.insertMany(adminUsers);
-    console.log("Admin data insertion successful!");
-  } catch (error) {
-    console.error("Error inserting admin data:", error.message);
+    await User.create(adminDataWithRole);
+    console.log("Manager inserted successfully!");
+  } catch (err) {
+    console.error(err.message);
   } finally {
     process.exit();
   }
@@ -41,10 +38,12 @@ const insertData = async () => {
 
 const deleteData = async () => {
   try {
-    await User.deleteMany();
-    console.log("Admin data destroyed!");
+    // await User.deleteMany();
+    console.log("Data destroyed!");
+    // await SupportMail.deleteMany();
+    await MqttMessage.deleteMany();
   } catch (error) {
-    console.error("Error deleting admin data:", error.message);
+    console.error("Error deleting data:", error.message);
   } finally {
     process.exit();
   }
