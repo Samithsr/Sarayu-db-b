@@ -2,7 +2,7 @@ const User = require("../../../models/userModel");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 const Company = require("../../../models/company-model");
-const Manager = require("../../../models/managerModel.js");
+const Manager = require("../../../models/managerModel");
 const Employee = require("../../../models/employeeModel.js");
 const Admin = require("../../../models/adminModel.js");
 const Topics = require("../../../models/topicsModel.js");
@@ -55,6 +55,27 @@ exports.createCompany = asyncHandler(async (req, res, next) => {
   res.status(201).json({
     success: true,
     data: newCompany,
+  });
+});
+
+// @desc    Create a new manager
+// @route   POST /api/v1/auth/createManager
+// @access  Private (admin)
+exports.createManager = asyncHandler(async (req, res, next) => {
+  const { name, email, phoneNumber, password, company } = req.body;
+  
+  const manager = await Manager.findOne({ email });
+  
+  if (manager) {
+    return next(new ErrorResponse("Manager already exists!", 409));
+  }
+  
+  const newManager = new Manager({ name, email, phoneNumber, password, company });
+  await newManager.save();
+  
+  res.status(201).json({
+    success: true,
+    data: newManager,
   });
 });
 

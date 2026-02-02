@@ -1,0 +1,24 @@
+[
+    {
+  "name": "TechNova Solutions",
+  "email": "contact@technova.com",
+  "phonenumber": "9876543210",
+  "address": "Bangalore, Karnataka, India",
+  "label": "IT Services"
+},
+{
+  "name": "GreenField Industries",
+  "email": "info@greenfield.com",
+  "phonenumber": "9123456780",
+  "address": "Mysore, Karnataka, India",
+  "label": "Manufacturing"
+},
+
+{
+  "name": "SkyLine Logistics",
+  "email": "support@skylinelogistics.com",
+  "phonenumber": "9988776655",
+  "address": "Hyderabad, Telangana, India",
+  "label": "Transport"
+}
+]

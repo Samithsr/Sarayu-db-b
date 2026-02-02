@@ -25,6 +25,10 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       required: [true, "Company is required"],
     },
+    selectManager: {
+      type: String,
+      required: [true, "Manager selection is required"],
+    },
     // topics: {
     //   type: mongoose.Schema.Types.Mixed,
     //   default: { rows: [], columns: [] }

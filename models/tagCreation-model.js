@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const topicsSchema = new mongoose.Schema({
+const tagCreationSchema = new mongoose.Schema({
   topic: {
     type: String,
     required: [true, "Topic is required"],
@@ -27,4 +27,4 @@ const topicsSchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("Topics", topicsSchema);
+module.exports = mongoose.model("TagCreation", tagCreationSchema);

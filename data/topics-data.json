@@ -1,0 +1,52 @@
+[
+  {
+    "topic": "companyone/d1/topic1|m/s",
+    "device": "VMS4000",
+    "label": "companyone_tagname_1"
+  },
+  {
+    "topic": "companyone/d1/topic2|m/s",
+    "device": "VMS4000",
+    "label": "companyone_tagname_2"
+  },
+  {
+    "topic": "companyone/d2/topic3|°C",
+    "device": "TEMP200",
+    "label": "companyone_temperature_3"
+  },
+  {
+    "topic": "companytwo/d1/topic1|bar",
+    "device": "PRESS100",
+    "label": "companytwo_pressure_1"
+  },
+  {
+    "topic": "companytwo/d1/topic2|rpm",
+    "device": "MOTOR500",
+    "label": "companytwo_motor_speed_2"
+  },
+  {
+    "topic": "companythree/d3/topic4|%",
+    "device": "HUM300",
+    "label": "companythree_humidity_4"
+  },
+  {
+    "topic": "companythree/d2/topic5|V",
+    "device": "ELEC900",
+    "label": "companythree_voltage_5"
+  },
+  {
+    "topic": "companyfour/d1/topic6|A",
+    "device": "AMP700",
+    "label": "companyfour_current_6"
+  },
+  {
+    "topic": "companyfive/d4/topic7|kW",
+    "device": "POWERX",
+    "label": "companyfive_power_7"
+  },
+  {
+    "topic": "companysix/d2/topic8|m/s",
+    "device": "FLOW800",
+    "label": "companysix_flowrate_8"
+  }
+]

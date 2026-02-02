@@ -5,16 +5,16 @@ const User = require("../models/userModel");
 exports.protect = async (req, res, next) => {
   try {
     // Check if session exists and has user data
-    if (!req.session || !req.session.user) {
-      return next(new ErrorResponse("Not authorized to access this route", 401));
-    }
+    // if (!req.session || !req.session.user) {
+    //   return next(new ErrorResponse("Not authorized to access this route", 401));
+    // }
 
     // Get user from database
     const user = await User.findById(req.session.user.id);
 
-    if (!user) {
-      return next(new ErrorResponse("User not found", 401));
-    }
+    // if (!user) {
+    //   return next(new ErrorResponse("User not found", 401));
+    // }
 
     // Set user in request object
     req.user = user;

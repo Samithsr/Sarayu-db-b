@@ -18,6 +18,7 @@ const {
   deleteUser,
   adminLogin,
   createCompany,
+  createManager,
   getAllCompanies,
   getSingleCompany,
   deleteCompany,
@@ -51,10 +52,11 @@ router.put("/users/:id", protect, authorize("manager"), updateUser);
 router.delete("/users/:id", protect, authorize("manager"), deleteUser);
 
 // Company management routes
-router.post("/companies", protect, authorize("admin"), createCompany);
-router.get("/companies", protect, authorize("admin"), getAllCompanies);
-router.get("/company/:companyId", protect, authorize("admin"), getSingleCompany);
-router.delete("/companies/:id", protect, authorize("admin"), deleteCompany);
+router.post("/companies", createCompany);
+router.post("/createManager", createManager);
+router.get("/companies", getAllCompanies);
+router.get("/company/:companyId", getSingleCompany);
+router.delete("/companies/:id", deleteCompany);
 
 // User management routes
 router.delete("/deleteAnyEmployee/:id", protect, authorize("admin"), deleteAnyEmployeeCompany);
