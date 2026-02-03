@@ -6,9 +6,9 @@ const asyncHandler = require("../../../middleware/asyncHandler");
 // @route   POST /api/v1/tagCreation/tagCreation
 // @access  Public
 exports.createTag = asyncHandler(async (req, res, next) => {
-  const { topic, device, label } = req.body;
+  const { topic, label } = req.body;
   
-  const tag = await Topics.findOne({ topic, device, label });
+  const tag = await Topics.findOne({ topic, label });
   
   if (tag) {
     return next(new ErrorResponse("Tag already exists!", 409));
@@ -16,7 +16,6 @@ exports.createTag = asyncHandler(async (req, res, next) => {
   
   const newTag = new Topics({ 
     topic, 
-    device, 
     label
   });
   
@@ -61,7 +60,7 @@ exports.getTag = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/v1/tagCreation/:id
 // @access  Public
 exports.updateTag = asyncHandler(async (req, res, next) => {
-  const { topic, device, label } = req.body;
+  const { topic, label } = req.body;
   
   let tag = await Topics.findById(req.params.id);
   
@@ -71,7 +70,6 @@ exports.updateTag = asyncHandler(async (req, res, next) => {
   
   // Update tag fields
   if (topic) tag.topic = topic;
-  if (device) tag.device = device;
   if (label) tag.label = label;
   
   await tag.save();

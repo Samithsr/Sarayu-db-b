@@ -58,6 +58,41 @@ exports.createCompany = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Edit a company by ID
+// @route   PUT /api/v1/auth/companies/:id
+// @access  Private (admin)
+exports.companyEdit = asyncHandler(async (req, res, next) => {
+  const { name, email, phonenumber, address, label } = req.body;
+  
+  let company = await Company.findById(req.params.id);
+  
+  if (!company) {
+    return next(new ErrorResponse(`Company not found with id of ${req.params.id}`, 404));
+  }
+  
+  // Check if new name already exists (excluding current company)
+  if (name && name !== company.name) {
+    const existingCompany = await Company.findOne({ name });
+    if (existingCompany) {
+      return next(new ErrorResponse("Company with this name already exists!", 409));
+    }
+  }
+  
+  // Update company fields
+  if (name) company.name = name;
+  if (email) company.email = email;
+  if (phonenumber) company.phonenumber = phonenumber;
+  if (address) company.address = address;
+  if (label) company.label = label;
+  
+  await company.save();
+  
+  res.status(200).json({
+    success: true,
+    data: company,
+  });
+});
+
 // @desc    Create a new manager
 // @route   POST /api/v1/auth/createManager
 // @access  Private (admin)

@@ -6,6 +6,7 @@ const Manager = require("./models/managerModel");
 const Employee = require("./models/employeeModel");
 const TagCreation = require("./models/tagCreation-model");
 const Topics = require("./models/topicsModel");
+const Device = require("./models/device-model");
 const dotenv = require("dotenv");
 const fs = require("fs");
 
@@ -30,6 +31,10 @@ const employee_data = JSON.parse(
 
 const topics_data = JSON.parse(
   fs.readFileSync("./data/topics-data.json", "utf-8")
+);
+
+const device_data = JSON.parse(
+  fs.readFileSync("./data/device-data.json", "utf-8")
 );
 
 connectDB();
@@ -145,6 +150,49 @@ const insertTopics = async () => {
   }
 };
 
+// Insert Device Data
+const insertDevice = async () => {
+  try {
+    // Drop the devices collection to remove all indexes and data
+    await Device.collection.drop();
+    console.log("🗑️ Dropped devices collection to clear indexes");
+  } catch (error) {
+    // Collection might not exist, that's okay
+    console.log("ℹ️ Collection might not exist, continuing...");
+  }
+  
+  try {
+    // Wait a moment for collection to be fully dropped
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Insert new device data
+    await Device.create(device_data);
+    console.log("✅ Device inserted successfully!");
+    process.exit();
+  } catch (error) {
+    console.log("❌ Device Insert Error:", error.message);
+    
+    // Try alternative approach with bulk write
+    try {
+      console.log("🔄 Trying bulk write approach...");
+      const operations = device_data.map(device => ({
+        updateOne: {
+          filter: { device: device.device },
+          update: { $set: device },
+          upsert: true
+        }
+      }));
+      
+      await Device.bulkWrite(operations);
+      console.log("✅ Device inserted successfully with bulk write!");
+      process.exit();
+    } catch (fallbackError) {
+      console.log("❌ Fallback Insert Error:", fallbackError.message);
+      process.exit();
+    }
+  }
+};
+
 /* ===============================
    DELETE FUNCTIONS
 =================================*/
@@ -221,6 +269,18 @@ const deleteTopics = async () => {
   }
 };
 
+// Delete Device Data
+const deleteDevice = async () => {
+  try {
+    await Device.deleteMany();
+    console.log("🗑️ Device deleted successfully!");
+    process.exit();
+  } catch (error) {
+    console.log("❌ Device Delete Error:", error.message);
+    process.exit();
+  }
+};
+
 /* ===============================
    COMMAND HANDLER
 =================================*/
@@ -271,6 +331,14 @@ if (process.argv[2] === "-td") {
 
 if (process.argv[2] === "-tdd") {
   deleteTopics();
+}
+
+if (process.argv[2] === "-dd") {
+  insertDevice();
+}
+
+if (process.argv[2] === "-ddd") {
+  deleteDevice();
 }
 
 

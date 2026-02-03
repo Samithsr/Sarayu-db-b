@@ -5,10 +5,6 @@ const topicsSchema = new mongoose.Schema({
     type: String,
     required: [true, "Topic is required"],
   },
-  device: {
-    type: String,
-    required: [true, "Device is required"],
-  },
   label: {
     type: String,
     required: [true, "Label is required"],

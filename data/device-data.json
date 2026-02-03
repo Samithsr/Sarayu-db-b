@@ -1,0 +1,32 @@
+[
+  {
+    "device": "Temperature_Sensor_01"
+  },
+  {
+    "device": "Pressure_Sensor_01"
+  },
+  {
+    "device": "Flow_Meter_01"
+  },
+  {
+    "device": "Level_Sensor_01"
+  },
+  {
+    "device": "pH_Sensor_01"
+  },
+  {
+    "device": "Conductivity_Sensor_01"
+  },
+  {
+    "device": "Turbidity_Sensor_01"
+  },
+  {
+    "device": "Dissolved_Oxygen_Sensor_01"
+  },
+  {
+    "device": "ORP_Sensor_01"
+  },
+  {
+    "device": "Temperature_Sensor_02"
+  }
+]
