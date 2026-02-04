@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const managerSchema = new mongoose.Schema(
   {
@@ -22,7 +24,8 @@ const managerSchema = new mongoose.Schema(
       select: false,
     },
     company: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
       required: [true, "Company is required"],
     },
     role: {
@@ -42,6 +45,33 @@ const managerSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Hash password before saving
+managerSchema.pre("save", async function (next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified("password")) {
+    if (next) next();
+    return;
+  }
+
+  // Hash password with cost of 12
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
+  
+  if (next) next();
+});
+
+// Method to check password
+managerSchema.methods.verifyPass = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Method to get JWT token
+managerSchema.methods.getToken = function () {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
+};
 
 const Manager = mongoose.model("Manager", managerSchema);
 module.exports = Manager;

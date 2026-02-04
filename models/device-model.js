@@ -4,7 +4,6 @@ const deviceSchema = new mongoose.Schema({
   device: {
     type: String,
     required: [true, "Device is required"],
-    unique: true,
     index: true
   },
   createdAt: {

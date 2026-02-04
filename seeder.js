@@ -76,25 +76,36 @@ const insertCompany = async () => {
 const insertManager = async () => {
   try {
     const bcrypt = require("bcryptjs");
+    const mongoose = require("mongoose");
     
-    // Process manager data with password hashing
+    // First, get actual company IDs from database
+    const companies = await Company.find();
+    if (companies.length === 0) {
+      console.log("❌ No companies found. Please run 'node seeder.js -c' first to create companies.");
+      process.exit();
+    }
+    
+    // Process manager data with password hashing and proper ObjectId conversion
     const managerDataWithHashedPassword = await Promise.all(
-      manager_data.map(async (manager) => {
-        const salt = await bcrypt.genSalt(10);
+      manager_data.map(async (manager, index) => {
+        const salt = await bcrypt.genSalt(12);
         const hashedPassword = await bcrypt.hash(manager.password, salt);
+        
+        // Use actual company ID from database or fallback to data
+        const companyId = companies[index % companies.length]._id;
         
         return {
           name: manager.name,
           email: manager.email,
           phoneNumber: manager.phoneNumber,
           password: hashedPassword,
-          company: manager.company,
+          company: companyId, // Use actual ObjectId
           role: "manager"
         };
       })
     );
     
-    await Manager.create(managerDataWithHashedPassword);
+    await Manager.insertMany(managerDataWithHashedPassword);
     console.log("✅ Manager inserted successfully!");
     process.exit();
   } catch (error) {
@@ -108,27 +119,38 @@ const insertEmployee = async () => {
   try {
     const bcrypt = require("bcryptjs");
     
-    // Process employee data with password hashing
+    // First, get actual manager IDs from database
+    const managers = await Manager.find();
+    if (managers.length === 0) {
+      console.log("❌ No managers found. Please run 'node seeder.js -md' first to create managers.");
+      process.exit();
+    }
+    
+    // Process employee data with manual password hashing and proper ObjectId conversion
     const employeeDataWithHashedPassword = await Promise.all(
-      employee_data.map(async (employee) => {
-        const salt = await bcrypt.genSalt(10);
+      employee_data.map(async (employee, index) => {
+        const salt = await bcrypt.genSalt(12);
         const hashedPassword = await bcrypt.hash(employee.password, salt);
+        
+        // Use actual manager ID from database
+        const managerId = managers[index % managers.length]._id;
+        const companyId = managers[index % managers.length].company;
         
         return {
           name: employee.name,
           email: employee.email,
-          selectManager: employee.selectManager,
+          selectManager: managerId, // Use actual ObjectId
           phoneNumber: employee.phoneNumber,
           headerOne: employee.headerOne,
           headerTwo: employee.headerTwo,
           password: hashedPassword,
-          company: employee.company,
+          company: companyId, // Use actual ObjectId from manager's company
           role: "employee"
         };
       })
     );
     
-    await Employee.create(employeeDataWithHashedPassword);
+    await Employee.insertMany(employeeDataWithHashedPassword);
     console.log("✅ Employee inserted successfully!");
     process.exit();
   } catch (error) {

@@ -1,32 +1,32 @@
 [
   {
-    "device": "Temperature_Sensor_01"
+    "device": "VMS7000"
   },
   {
-    "device": "Pressure_Sensor_01"
+    "device": "VMS2000"
   },
   {
-    "device": "Flow_Meter_01"
+    "device": "VMS9000"
   },
   {
-    "device": "Level_Sensor_01"
+    "device": "VMS9000"
   },
   {
-    "device": "pH_Sensor_01"
+    "device": "VMS2000"
   },
   {
-    "device": "Conductivity_Sensor_01"
+    "device": "VMS2000"
   },
   {
-    "device": "Turbidity_Sensor_01"
+    "device": "VMS2000"
   },
   {
-    "device": "Dissolved_Oxygen_Sensor_01"
+    "device": "VMS3000"
   },
   {
-    "device": "ORP_Sensor_01"
+    "device": "VMS3000"
   },
   {
-    "device": "Temperature_Sensor_02"
+    "device": "VMS3000"
   }
 ]

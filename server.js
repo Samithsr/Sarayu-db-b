@@ -12,6 +12,7 @@ const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
 const managerRoutes = require("./src/managerFolder/managerRouteFolder/managerroutes");
 const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employeeRoutes");
 const tagCreationRoutes = require("./src/tagCreatFolder/tagCreationRoutesFolder/tagCreRoutets");
+const mDashboardRoutes = require("./src/managerDashboard/mDashboardRouteFolder/mDashboardRoutes");
 
 dotenv.config();
 
@@ -81,6 +82,10 @@ app.use("/api/v1/employee", employeeRoutes);
 // - PUT /api/v1/tagCreation/:id - Update tag
 // - DELETE /api/v1/tagCreation/:id - Delete tag
 app.use("/api/v1/tagCreation", tagCreationRoutes);
+
+// Manager Dashboard Routes
+// - GET /api/v1/managerDashboard/getAllCompanies - Get all companies
+app.use("/api/v1/managerDashboard", mDashboardRoutes);
 
 app.get("/", (req, res) => {
   res.send("Sarayu Backend Server is running...");

@@ -5,16 +5,20 @@ const router = express.Router();
 const {
   createTag,
   getAllTags,
+  getAllTopics,
   getTag,
   updateTag,
-  deleteTag
+  deleteTag,
+  assignTopicsEmployee
 } = require("../tagCreationControllerFolder/TagCreController");
 
 // Tag creation routes
-router.post("/tagCreation", createTag);
+router.post("/", createTag);
 router.get("/all", getAllTags);
+router.get("/getAllTopics", getAllTopics);
 router.get("/:id", getTag);
 router.put("/:id", updateTag);
 router.delete("/:id", deleteTag);
+router.post("/assignTopicsEmployee", assignTopicsEmployee);
 
 module.exports = router;

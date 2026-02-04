@@ -1,4 +1,6 @@
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const employeeSchema = new mongoose.Schema(
   {
@@ -22,21 +24,15 @@ const employeeSchema = new mongoose.Schema(
       select: false,
     },
     company: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
       required: [true, "Company is required"],
     },
     selectManager: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Manager",
       required: [true, "Manager selection is required"],
     },
-    // topics: {
-    //   type: mongoose.Schema.Types.Mixed,
-    //   default: { rows: [], columns: [] }
-    // },
-    // graphwhitlist: {
-    //   type: mongoose.Schema.Types.Mixed,
-    //   default: { rows: [], columns: [] }
-    // },
     layout: {
       type: String,
       default: "default",
@@ -55,11 +51,11 @@ const employeeSchema = new mongoose.Schema(
     }],
     headerOne: {
       type: String,
-      default: "",
+      default: [],
     },
     headerTwo: {
       type: String,
-      default: "",
+      default: [],
     },
     createdAt: {
       type: Date,
@@ -78,6 +74,33 @@ const employeeSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Hash password before saving
+employeeSchema.pre("save", async function (next) {
+  // Only hash the password if it has been modified (or is new)
+  if (!this.isModified("password")) {
+    if (next) next();
+    return;
+  }
+
+  // Hash password with cost of 12
+  const salt = await bcrypt.genSalt(12);
+  this.password = await bcrypt.hash(this.password, salt);
+  
+  if (next) next();
+});
+
+// Method to check password
+employeeSchema.methods.verifyPass = async function (enteredPassword) {
+  return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Method to get JWT token
+employeeSchema.methods.getToken = function () {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
+};
 
 const Employee = mongoose.model("Employee", employeeSchema);
 module.exports = Employee;
