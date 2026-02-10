@@ -8,7 +8,7 @@ const bcrypt = require("bcryptjs");
 // @route   POST /api/v1/manager/create
 // @access  Public
 exports.createManager = asyncHandler(async (req, res, next) => {
-  const { name, email, phoneNumber, password, company } = req.body;
+  const { name, email, phoneNumber, password } = req.body;
   
   const manager = await Manager.findOne({ email });
   
@@ -16,7 +16,7 @@ exports.createManager = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Manager already exists!", 409));
   }
   
-  const newManager = new Manager({ name, email, phoneNumber, password, company });
+  const newManager = new Manager({ name, email, phoneNumber, password });
   await newManager.save();
   
   res.status(201).json({
@@ -58,7 +58,7 @@ exports.getManager = asyncHandler(async (req, res, next) => {
 // @route   PUT /api/v1/manager/:id
 // @access  Public
 exports.updateManager = asyncHandler(async (req, res, next) => {
-  const { name, email, phoneNumber, company } = req.body;
+  const { name, email, phoneNumber } = req.body;
   
   let manager = await Manager.findById(req.params.id);
   
@@ -74,19 +74,10 @@ exports.updateManager = asyncHandler(async (req, res, next) => {
     }
   }
   
-  // If updating company, check if it exists
-  if (company && company !== manager.company) {
-    const existingCompany = await Company.findById(company);
-    if (!existingCompany) {
-      return next(new ErrorResponse("Company not found", 404));
-    }
-  }
-  
   // Update manager fields
   if (name) manager.name = name;
   if (email) manager.email = email;
   if (phoneNumber) manager.phoneNumber = phoneNumber;
-  if (company) manager.company = company;
   
   await manager.save();
   
