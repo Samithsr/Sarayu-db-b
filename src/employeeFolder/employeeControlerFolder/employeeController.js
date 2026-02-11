@@ -12,13 +12,11 @@ exports.createEmployee = asyncHandler(async (req, res, next) => {
   const { 
     name, 
     email, 
-    selectManager, 
     phoneNumber, 
     headerOne, 
     headerTwo, 
     password, 
-    confirmPassword, 
-    company 
+    confirmPassword
   } = req.body;
   
   // Validate password confirmation
@@ -33,38 +31,54 @@ exports.createEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Employee with this email already exists", 409));
   }
   
-  // Check if company exists
-  const existingCompany = await Company.findById(company);
-  
-  if (!existingCompany) {
-    return next(new ErrorResponse("Company not found", 404));
+  // Find or create default company
+  let defaultCompany = await Company.findOne({ name: "Default Company" });
+  if (!defaultCompany) {
+    defaultCompany = new Company({
+      name: "Default Company",
+      email: "default@company.com",
+      phonenumber: "0000000000",
+      address: "Default Address",
+      label: "Default Company"
+    });
+    await defaultCompany.save();
   }
   
-  // Check if manager exists
-  const existingManager = await Manager.findById(selectManager);
-  
-  if (!existingManager) {
-    return next(new ErrorResponse("Manager not found", 404));
+  // Find or create default manager
+  let defaultManager = await Manager.findOne({ name: "Default Manager" });
+  if (!defaultManager) {
+    defaultManager = new Manager({
+      name: "Default Manager",
+      email: "default@manager.com",
+      phoneNumber: "0000000000",
+      password: "defaultpassword123",
+      company: defaultCompany._id
+    });
+    await defaultManager.save();
   }
   
   // Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
   
-  // Create new employee
+  // Create new employee with auto-assigned manager and company
   const newEmployee = new Employee({
     name,
     email,
-    selectManager,
+    selectManager: defaultManager._id,
     phoneNumber,
     headerOne,
     headerTwo,
     password: hashedPassword,
-    company,
+    company: defaultCompany._id,
     role: "employee"
   });
   
   await newEmployee.save();
+  
+  // Populate company and manager details in response
+  await newEmployee.populate("company", "name email");
+  await newEmployee.populate("selectManager", "name email");
   
   // Remove password from response
   newEmployee.password = undefined;

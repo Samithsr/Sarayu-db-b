@@ -26,7 +26,7 @@ const managerSchema = new mongoose.Schema(
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: [true, "Company is required"],
+      // required: [true, "Company is required"],
     },
     role: {
       type: String,
