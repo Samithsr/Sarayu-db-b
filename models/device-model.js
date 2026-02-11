@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const deviceSchema = new mongoose.Schema({
   device: {
     type: String,
-    required: [true, "Device is required"],
+    // required: [true, "Device is required"],
     index: true
   },
   createdAt: {

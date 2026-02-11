@@ -50,7 +50,7 @@ const managerSchema = new mongoose.Schema(
 managerSchema.pre("save", async function (next) {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified("password")) {
-    if (next) next();
+    // if (next) next();
     return;
   }
 
@@ -58,7 +58,7 @@ managerSchema.pre("save", async function (next) {
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
   
-  if (next) next();
+  // if (next) next();
 });
 
 // Method to check password
