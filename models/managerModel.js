@@ -6,39 +6,59 @@ const managerSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
+      required: true,
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      required: true,
       unique: true,
-      match: [/.+\@.+\..+/, "Please enter a valid email address"],
     },
-    phoneNumber: {
+    phonenumber: {
       type: String,
-      required: [true, "Phone number is required"],
+      required: false,
     },
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-      select: false,
+    topics: {
+      type: [String],
+      default: [],
     },
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: [true, "Company is required"],
+      required: true,
+    },
+    favorites: {
+      type: [String],
+      default: [],
+    },
+    graphwl: {
+      type: [String],
+      default: [],
+    },
+    password: {
+      type: String,
+      select: false,
+      required: [true, "Password is required"],
+    },
+    layout: {
+      type: String,
+      default: "layout1",
+    },
+    assignedDigitalMeters: {
+      type: [
+        {
+          topic: String,
+          meterType: String,
+          minValue: Number,
+          maxValue: Number,
+          ticks: Number,
+          label: String,
+        },
+      ],
+      default: [],
     },
     role: {
       type: String,
       default: "manager",
-    },
-    createdAt: {
-      type: Date,
-      default: Date.now,
-    },
-    updatedAt: {
-      type: Date,
-      default: Date.now,
     },
   },
   {
@@ -57,8 +77,8 @@ managerSchema.pre("save", async function (next) {
   // Hash password with cost of 12
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
+  
   // if (next) next();
-
 });
 
 // Method to check password

@@ -3,18 +3,10 @@ const router = express.Router();
 
 // Import employee controller functions
 const {
-  createEmployee,
-  getAllEmployees,
-  getEmployee,
-  updateEmployee,
-  deleteEmployee
+  createEmployee
 } = require("../employeeControlerFolder/employeeController");
 
 // Employee routes
-router.post("/create", createEmployee);
-router.get("/all", getAllEmployees);
-router.get("/:id", getEmployee);
-router.put("/:id", updateEmployee);
-router.delete("/:id", deleteEmployee);
+router.post("/create/:companyId/:supervisorId", createEmployee);
 
 module.exports = router;

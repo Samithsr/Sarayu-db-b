@@ -49,7 +49,7 @@ exports.createCompany = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Company already exists!", 409));
   }
   
-  const newCompany = new Company({ name, email, phonenumber, address });
+  const newCompany = new Company({ name, email, phonenumber, address, label });
   await newCompany.save();
   
   res.status(201).json({

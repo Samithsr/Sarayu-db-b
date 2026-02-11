@@ -9,8 +9,9 @@ const connectDB = require("./config/db");
 const redisClient = require("./config/redis");
 const RedisSessionStore = require("./config/redisSessionStore");
 const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
-const managerRoutes = require("./src/managerFolder/managerRouteFolder/managerRoutes");
+const managerRoutes = require("./src/managerFolder/managerRouteFolder/managerroutes");
 const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employeeRoutes");
+const supervisorRoutes = require("./src/supervisor/supervisorRoutes");
 const tagCreationRoutes = require("./src/tagCreatFolder/tagCreationRoutesFolder/tagCreRoutets");
 const mDashboardRoutes = require("./src/managerDashboard/mDashboardRouteFolder/mDashboardRoutes");
 
@@ -74,6 +75,10 @@ app.use("/api/v1/manager", managerRoutes);
 // - PUT /api/v1/employee/:id - Update employee
 // - DELETE /api/v1/employee/:id - Delete employee
 app.use("/api/v1/employee", employeeRoutes);
+
+// Supervisor Routes
+// - POST /api/v1/supervisor/create/:companyId - Create new supervisor
+app.use("/api/v1/supervisor", supervisorRoutes);
 
 // Tag Creation Routes
 // - POST /api/v1/tagCreation/tagCreation - Create new tag

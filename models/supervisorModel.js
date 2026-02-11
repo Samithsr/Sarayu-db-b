@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const employeeSchema = new mongoose.Schema(
+const supervisorSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -17,25 +17,22 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       required: false,
     },
-    company: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      required: true,
-    },
-    supervisor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Supervisor",
-      required: false,
-    },
     password: {
       type: String,
       select: false,
       required: [true, "Password is required"],
     },
-    topics: {
-      type: [String],
+    company: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
     },
-    favorites: {
+    manager: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Manager",
+      required: false,
+    },
+    topics: {
       type: [String],
       default: [],
     },
@@ -47,13 +44,9 @@ const employeeSchema = new mongoose.Schema(
       type: String,
       default: "layout1",
     },
-    headerOne : {
-      type : "String",
-      required : true
-    },
-    headerTwo : {
-      type : "String",
-      required : false
+    favorites: {
+      type: [String],
+      default: [],
     },
     assignedDigitalMeters: {
       type: [
@@ -70,7 +63,7 @@ const employeeSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: "employee",
+      default: "supervisor",
     },
   },
   {
@@ -78,16 +71,18 @@ const employeeSchema = new mongoose.Schema(
   }
 );
 
-employeeSchema.pre("save", async function (next) {
+// Pre-save middleware to hash password before saving to database
+supervisorSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     // return next();
   }
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt();
   this.password = await bcrypt.hash(this.password, salt);
   // next();
 });
 
-employeeSchema.methods.getToken = function () {
+// Method to generate the jwt token for the logged-in or signed-up users
+supervisorSchema.methods.getToken = function () {
   return jwt.sign(
     {
       id: this._id,
@@ -103,18 +98,23 @@ employeeSchema.methods.getToken = function () {
   );
 };
 
-employeeSchema.methods.verifyPass = async function (enteredPassword) {
+// Method to verify the user-entered password with the existing password in the database
+supervisorSchema.methods.verifyPass = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-const Employee = mongoose.model("Employee", employeeSchema);
+// Add a virtual field to reverse populate employees under the supervisor
+supervisorSchema.virtual("employees", {
+  ref: "Employee", // The model to populate
+  localField: "_id", // The field in Supervisor
+  foreignField: "supervisor", // The field in Employee that references Supervisor
+  justOne: false, // To get an array of employees
+});
 
-module.exports = Employee;
+// Ensure virtual fields are included in the output
+supervisorSchema.set("toObject", { virtuals: true });
+supervisorSchema.set("toJSON", { virtuals: true });
 
+const Supervisor = mongoose.model("Supervisor", supervisorSchema);
 
-
-
-
-
-
-
+module.exports = Supervisor;
