@@ -26,7 +26,7 @@ const managerSchema = new mongoose.Schema(
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: [true, "Company is required"],
+      // required: [true, "Company is required"],
     },
     role: {
       type: String,
@@ -57,8 +57,8 @@ managerSchema.pre("save", async function (next) {
   // Hash password with cost of 12
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-  
   // if (next) next();
+
 });
 
 // Method to check password

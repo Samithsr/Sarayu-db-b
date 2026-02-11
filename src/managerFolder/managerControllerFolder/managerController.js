@@ -16,13 +16,34 @@ exports.createManager = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Manager already exists!", 409));
   }
   
-  // Validate company exists
-  const companyExists = await Company.findById(company);
-  if (!companyExists) {
-    return next(new ErrorResponse("Company not found!", 404));
+  let companyId = company;
+  
+  // If no company provided, find or create a default company
+  if (!company) {
+    let defaultCompany = await Company.findOne({ name: "Default Company" });
+    
+    if (!defaultCompany) {
+      // Create a default company if it doesn't exist
+      defaultCompany = new Company({
+        name: "Default Company",
+        email: "default@company.com",
+        phonenumber: "0000000000",
+        address: "Default Address",
+        label: "Default Company"
+      });
+      await defaultCompany.save();
+    }
+    
+    companyId = defaultCompany._id;
+  } else {
+    // Validate company exists if company ID is provided
+    const companyExists = await Company.findById(company);
+    if (!companyExists) {
+      return next(new ErrorResponse("Company not found!", 404));
+    }
   }
   
-  const newManager = new Manager({ name, email, phoneNumber, password, company });
+  const newManager = new Manager({ name, email, phoneNumber, password, company: companyId });
   await newManager.save();
   
   // Populate company details in response
