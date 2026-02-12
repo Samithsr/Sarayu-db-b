@@ -4,7 +4,7 @@ const asyncHandler = require("../../../middleware/asyncHandler");
 
 //create a employee
 const createEmployee = asyncHandler(async (req, res, next) => {
-  const { companyId, supervisorId } = req.params;
+  const { companyId, managerId } = req.params;
   const { name, email, password, phonenumber, mqttTopic , headerOne , headerTwo } = req.body;
   const employee = await Employee.create({
     name,
@@ -14,7 +14,7 @@ const createEmployee = asyncHandler(async (req, res, next) => {
     headerOne , 
     headerTwo,
     company: companyId,
-    supervisor: supervisorId,
+    supervisor: managerId,
   });
   res.status(201).json({
     success: true,

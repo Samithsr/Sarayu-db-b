@@ -7,6 +7,6 @@ const {
 } = require("../employeeControlerFolder/employeeController");
 
 // Employee routes
-router.post("/create/:companyId/:supervisorId", createEmployee);
+router.post("/create/:companyId/:managerId", createEmployee);
 
 module.exports = router;
