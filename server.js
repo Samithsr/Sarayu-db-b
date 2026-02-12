@@ -21,10 +21,41 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Debug middleware to log request body
+app.use((req, res, next) => {
+  console.log('Request body:', req.body);
+  console.log('Request headers:', req.headers);
+  
+  // Fallback: Try to parse JSON if body is empty and content-length exists
+  if (!req.body || Object.keys(req.body).length === 0) {
+    const contentLength = req.headers['content-length'];
+    if (contentLength && parseInt(contentLength) > 0) {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          req.body = JSON.parse(body);
+          console.log('Parsed fallback body:', req.body);
+        } catch (e) {
+          console.log('Failed to parse body as JSON');
+        }
+        next();
+      });
+    } else {
+      next();
+    }
+  } else {
+    next();
+  }
+});
 
 // Enhanced CORS configuration
 app.use(cors({
-  origin: ['http://192.168.1.231:5173', ],
+  origin: ['http://localhost:5173', ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
