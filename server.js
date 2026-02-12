@@ -9,9 +9,8 @@ const connectDB = require("./config/db");
 const redisClient = require("./config/redis");
 const RedisSessionStore = require("./config/redisSessionStore");
 const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
-const managerRoutes = require("./src/managerFolder/managerRouteFolder/managerroutes");
 const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employeeRoutes");
-const supervisorRoutes = require("./src/supervisor/supervisorRoutes");
+const managerRoutes = require("./src/manager/managerRoutes");
 const tagCreationRoutes = require("./src/tagCreatFolder/tagCreationRoutesFolder/tagCreRoutets");
 const mDashboardRoutes = require("./src/managerDashboard/mDashboardRouteFolder/mDashboardRoutes");
 
@@ -55,7 +54,7 @@ app.use((req, res, next) => {
 
 // Enhanced CORS configuration
 app.use(cors({
-  origin: ['http://localhost:5173', ],
+  origin: ['http://192.168.1.231:5173', ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -107,9 +106,9 @@ app.use("/api/v1/manager", managerRoutes);
 // - DELETE /api/v1/employee/:id - Delete employee
 app.use("/api/v1/employee", employeeRoutes);
 
-// Supervisor Routes
-// - POST /api/v1/supervisor/create/:companyId - Create new supervisor
-app.use("/api/v1/supervisor", supervisorRoutes);
+// Manager Routes
+// - POST /api/v1/manager/create/:companyId - Create new manager
+app.use("/api/v1/manager", managerRoutes);
 
 // Tag Creation Routes
 // - POST /api/v1/tagCreation/tagCreation - Create new tag
