@@ -13,7 +13,6 @@ const layoutSchema = new mongoose.Schema(
     layoutType: {
       type: String,
       required: true,
-      enum: ["layout1", "layout2", "layout3", "custom"],
       default: "layout1"
     },
     components: {
@@ -43,6 +42,11 @@ const layoutSchema = new mongoose.Schema(
     manager: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Manager",
+      required: false,
+    },
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
       required: false,
     },
     isActive: {

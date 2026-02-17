@@ -4,21 +4,23 @@ const router = express.Router();
 // Import tag creation controller functions
 const {
   createTag,
-  getAllTags,
   getAllTopics,
-  getTag,
-  updateTag,
+  getAllDevices,
   deleteTag,
-  assignTopicsEmployee
-} = require("../tagCreationControllerFolder/TagCreController");
+  assignTopicsEmployee,
+  subscribeTopic,
+  subscribeAllTopics,
+  subScribeAllTopics
+} = require("../tagCreationControllerFolder/tagCreController");
 
 // Tag creation routes
 router.post("/", createTag);
-router.get("/all", getAllTags);
 router.get("/getAllTopics", getAllTopics);
-router.get("/:id", getTag);
-router.put("/:id", updateTag);
+router.get("/getAllDevices", getAllDevices);
 router.delete("/:id", deleteTag);
 router.post("/assignTopicsEmployee", assignTopicsEmployee);
+router.post("/subscribeTopic", subscribeTopic);
+router.get("/subscribeAllTopics", subscribeAllTopics);
+router.post("/subScribeAllTopics", subScribeAllTopics);
 
 module.exports = router;

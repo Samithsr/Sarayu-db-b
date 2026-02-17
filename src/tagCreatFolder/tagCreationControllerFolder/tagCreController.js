@@ -1,6 +1,7 @@
 const Topics = require("../../../models/topicsModel");
 const Device = require("../../../models/device-model");
 const Employee = require("../../../models/employeeModel");
+const SubscribedTopic = require("../../../models/subscribedTopic-model");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 
@@ -10,19 +11,13 @@ const asyncHandler = require("../../../middleware/asyncHandler");
 exports.createTag = asyncHandler(async (req, res, next) => {
   const { device, topic, label } = req.body;
   
-  // Check if device already exists
-  const existingDevice = await Device.findOne({ device });
-  if (existingDevice) {
-    return next(new ErrorResponse("Device already exists!", 409));
-  }
-  
-  // Check if topic already exists
+  // Only check if topic already exists (allow device duplicates)
   const existingTopic = await Topics.findOne({ topic, label });
   if (existingTopic) {
     return next(new ErrorResponse("Topic already exists!", 409));
   }
   
-  // Save device to Device model
+  // Save device to Device model (allow duplicates)
   const newDevice = new Device({ device });
   await newDevice.save();
   
@@ -36,26 +31,6 @@ exports.createTag = asyncHandler(async (req, res, next) => {
       device: newDevice,
       topic: newTopic
     },
-  });
-});
-
-// @desc    Get all tags
-// @route   GET /api/v1/tagCreation/all
-// @access  Public
-exports.getAllTags = asyncHandler(async (req, res, next) => {
-  const topics = await Topics.find().sort({ createdAt: -1 });
-  const devices = await Device.find().sort({ createdAt: -1 });
-  
-  // Add devices to each topic
-  const topicsWithDevices = topics.map(topic => ({
-    ...topic.toObject(),
-    devices: devices
-  }));
-  
-  res.status(200).json({
-    success: true,
-    count: topics.length,
-    data: topicsWithDevices
   });
 });
 
@@ -87,43 +62,18 @@ exports.getAllTopics = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get single tag
-// @route   GET /api/v1/tagCreation/:id
+// @desc    Get all devices
+// @route   GET /api/v1/tagCreation/getAllDevices
 // @access  Public
-exports.getTag = asyncHandler(async (req, res, next) => {
-  const tag = await Topics.findById(req.params.id);
+exports.getAllDevices = asyncHandler(async (req, res, next) => {
+  const devices = await Device.find().sort({ createdAt: -1 });
   
-  if (!tag) {
-    return next(new ErrorResponse(`Tag not found with id of ${req.params.id}`, 404));
-  }
+  console.log('Devices found:', devices.length);
   
   res.status(200).json({
     success: true,
-    data: tag
-  });
-});
-
-// @desc    Update tag
-// @route   PUT /api/v1/tagCreation/:id
-// @access  Public
-exports.updateTag = asyncHandler(async (req, res, next) => {
-  const { topic, label } = req.body;
-  
-  let tag = await Topics.findById(req.params.id);
-  
-  if (!tag) {
-    return next(new ErrorResponse(`Tag not found with id of ${req.params.id}`, 404));
-  }
-  
-  // Update tag fields
-  if (topic) tag.topic = topic;
-  if (label) tag.label = label;
-  
-  await tag.save();
-  
-  res.status(200).json({
-    success: true,
-    data: tag
+    count: devices.length,
+    data: devices
   });
 });
 
@@ -164,8 +114,8 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
   }
   
   // Add topics to employee's assigned topics (if field exists)
-  // For now, we'll return the assignment info
-  // You may need to add an 'assignedTopics' field to the employee schema
+  // For now, we'll return assignment info
+  // You may need to add an 'assignedTopics' field to employee schema
   
   res.status(200).json({
     success: true,
@@ -179,4 +129,62 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Subscribe to topics
+// @route   POST /api/v1/tagCreation/subscribeTopic
+// @access  Public
+exports.subscribeTopic = asyncHandler(async (req, res) => {
+  const { topic } = req.body;
+  console.log("subscribeTopic request:", topic);
+  const foundTopic = await SubscribedTopic.findOne({ topic });
+  if (!foundTopic) {
+    await SubscribedTopic.create({ topic });
+    return res.status(201).json({ success: true, data: [] });
+  } else {
+    await foundTopic.deleteOne();
+    return res.status(200).json({ success: true, data: [] });
+  }
+});
 
+// @desc    Get all subscribed topics
+// @route   GET /api/v1/tagCreation/subscribeAllTopics
+// @access  Public
+exports.subscribeAllTopics = asyncHandler(async (req, res, next) => {
+  const subscribedTopics = await SubscribedTopic.find({}, { _id: 0, topic: 1 });
+  res.status(200).json({ success: true, data: subscribedTopics });
+});
+
+// @desc    Subscribe to all existing topics
+// @route   POST /api/v1/tagCreation/subScribeAllTopics
+// @access  Public
+exports.subScribeAllTopics = asyncHandler(async (req, res, next) => {
+  // Get all existing topics from Topics model
+  const allTopics = await Topics.find({}, { topic: 1 });
+  
+  if (allTopics.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "No topics found to subscribe",
+      data: []
+    });
+  }
+  
+  // Subscribe to all topics
+  const subscribedTopics = [];
+  for (const topicDoc of allTopics) {
+    const topic = topicDoc.topic;
+    
+    // Check if already subscribed
+    const existingSubscription = await SubscribedTopic.findOne({ topic });
+    if (!existingSubscription) {
+      // Create new subscription
+      await SubscribedTopic.create({ topic });
+      subscribedTopics.push(topic);
+    }
+  }
+  
+  res.status(201).json({
+    success: true,
+    message: `Subscribed to ${subscribedTopics.length} topics`,
+    data: subscribedTopics
+  });
+});

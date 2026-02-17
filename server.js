@@ -118,6 +118,31 @@ app.use("/api/v1/manager", managerRoutes);
 // - DELETE /api/v1/tagCreation/:id - Delete tag
 app.use("/api/v1/tagCreation", tagCreationRoutes);
 
+// Direct Topics Route
+// - GET /api/v1/getAllTopics - Get all topics
+const { getAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.get("/api/v1/getAllTopics", getAllTopics);
+
+// Direct Devices Route
+// - GET /api/v1/getAllDevices - Get all devices
+const { getAllDevices } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.get("/api/v1/getAllDevices", getAllDevices);
+
+// Direct Subscribe Topic Route
+// - POST /api/v1/subscribeTopic - Subscribe to topic
+const { subscribeTopic } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.post("/api/v1/subscribeTopic", subscribeTopic);
+
+// Direct Subscribe All Topics Route
+// - GET /api/v1/subscribedlTopics - Get all subscribed topics
+const { subscribeAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.get("/api/v1/subscribedlTopics", subscribeAllTopics);
+
+// Direct Subscribe All Existing Topics Route
+// - POST /api/v1/subScribeAllTopics - Subscribe to all existing topics
+const { subScribeAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.post("/api/v1/subScribeAllTopics", subScribeAllTopics);
+
 // Manager Dashboard Routes
 // - GET /api/v1/managerDashboard/getAllCompanies - Get all companies
 app.use("/api/v1/managerDashboard", mDashboardRoutes);
