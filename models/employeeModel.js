@@ -22,9 +22,9 @@ const employeeSchema = new mongoose.Schema(
       ref: "Company",
       required: true,
     },
-    supervisor: {
+    manager: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Supervisor",
+      ref: "Manager",
       required: false,
     },
     password: {
