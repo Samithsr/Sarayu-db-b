@@ -10,7 +10,9 @@ const {
   assignTopicsEmployee,
   subscribeTopic,
   subscribeAllTopics,
-  subScribeAllTopics
+  subScribeAllTopics,
+  assignlayoutToManager,
+  assignlayoutToEmployee
 } = require("../tagCreationControllerFolder/tagCreController");
 
 // Tag creation routes
@@ -22,5 +24,7 @@ router.post("/assignTopicsEmployee", assignTopicsEmployee);
 router.post("/subscribeTopic", subscribeTopic);
 router.get("/subscribeAllTopics", subscribeAllTopics);
 router.post("/subScribeAllTopics", subScribeAllTopics);
+router.post("/assignlayoutToManager/:id", assignlayoutToManager);
+router.post("/assignlayoutToEmployee/:id", assignlayoutToEmployee);
 
 module.exports = router;

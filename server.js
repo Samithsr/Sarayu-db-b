@@ -143,6 +143,16 @@ app.get("/api/v1/subscribedlTopics", subscribeAllTopics);
 const { subScribeAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/subScribeAllTopics", subScribeAllTopics);
 
+// Direct Assign Layout to Manager Route
+// - POST /api/v1/assignlayoutToManager/:id - Assign layout to manager
+const { assignlayoutToManager } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.post("/api/v1/assignlayoutToManager/:id", assignlayoutToManager);
+
+// Direct Assign Layout to Employee Route
+// - POST /api/v1/assignlayoutToEmployee/:id - Assign layout to employee
+const { assignlayoutToEmployee } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.post("/api/v1/assignlayoutToEmployee/:id", assignlayoutToEmployee);
+
 // Manager Dashboard Routes
 // - GET /api/v1/managerDashboard/getAllCompanies - Get all companies
 app.use("/api/v1/managerDashboard", mDashboardRoutes);

@@ -1,7 +1,9 @@
 const Topics = require("../../../models/topicsModel");
 const Device = require("../../../models/device-model");
 const Employee = require("../../../models/employeeModel");
+const Manager = require("../../../models/manager-Model");
 const SubscribedTopic = require("../../../models/subscribedTopic-model");
+const Layout = require("../../../models/layout-model");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 
@@ -186,5 +188,64 @@ exports.subScribeAllTopics = asyncHandler(async (req, res, next) => {
     success: true,
     message: `Subscribed to ${subscribedTopics.length} topics`,
     data: subscribedTopics
+  });
+});
+
+// @desc    Assign layout to manager
+// @route   POST /api/v1/tagCreation/assignlayoutToManager/:id
+// @access  Public
+exports.assignlayoutToManager = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { layout } = req.body;
+  
+  // Check if manager exists
+  const manager = await Manager.findById(id);
+  if (!manager) {
+    return next(new ErrorResponse(`Manager not found with id of ${id}`, 404));
+  }
+  
+  // Create layout assignment in layout-model
+  const layoutAssignment = await Layout.create({
+    name: layout.name,
+    description: layout.description || '',
+    layoutType: layout.layoutType || 'default',
+    components: layout.components || [],
+    company: manager.company,
+    manager: id
+  });
+  
+  res.status(200).json({ 
+    success: true, 
+    data: layoutAssignment 
+  });
+});
+
+// @desc    Assign layout to employee
+// @route   POST /api/v1/tagCreation/assignlayoutToEmployee/:id
+// @access  Public
+exports.assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { layout } = req.body;
+  
+  // Check if employee exists
+  const employee = await Employee.findById(id);
+  if (!employee) {
+    return next(new ErrorResponse(`Employee not found with id of ${id}`, 404));
+  }
+  
+  // Create layout assignment in layout-model
+  const layoutAssignment = await Layout.create({
+    name: layout.name,
+    description: layout.description || '',
+    layoutType: layout.layoutType || 'default',
+    components: layout.components || [],
+    company: employee.company,
+    manager: employee.manager,
+    employee: id
+  });
+  
+  res.status(200).json({ 
+    success: true, 
+    data: layoutAssignment 
   });
 });
