@@ -9,6 +9,10 @@ const topicsSchema = new mongoose.Schema({
     type: String,
     required: [true, "Label is required"],
   },
+  device: {
+    type: String,
+    required: false,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

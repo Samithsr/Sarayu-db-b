@@ -1,5 +1,4 @@
 const Topics = require("../../../models/topicsModel");
-const Device = require("../../../models/device-model");
 const Employee = require("../../../models/employeeModel");
 const Manager = require("../../../models/manager-Model");
 const SubscribedTopic = require("../../../models/subscribedTopic-model");
@@ -19,20 +18,13 @@ exports.createTag = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Topic already exists!", 409));
   }
   
-  // Save device to Device model (allow duplicates)
-  const newDevice = new Device({ device });
-  await newDevice.save();
-  
-  // Save topic to Topics model
-  const newTopic = new Topics({ topic, label });
+  // Save topic directly to Topics model with device field
+  const newTopic = new Topics({ topic, label, device });
   await newTopic.save();
   
   res.status(201).json({
     success: true,
-    data: {
-      device: newDevice,
-      topic: newTopic
-    },
+    data: newTopic,
   });
 });
 
@@ -41,41 +33,13 @@ exports.createTag = asyncHandler(async (req, res, next) => {
 // @access  Public
 exports.getAllTopics = asyncHandler(async (req, res, next) => {
   const topics = await Topics.find().sort({ createdAt: -1 });
-  const devices = await Device.find().sort({ createdAt: -1 });
   
   console.log('Topics found:', topics.length);
-  console.log('Devices found:', devices.length);
-  
-  // Add a single device to each topic
-  const topicsWithDevice = topics.map((topic, index) => {
-    const deviceIndex = index % devices.length;
-    const selectedDevice = devices[deviceIndex];
-    
-    return {
-      ...topic.toObject(),
-      device: selectedDevice ? selectedDevice.device : null
-    };
-  });
   
   res.status(200).json({
     success: true,
     count: topics.length,
-    data: topicsWithDevice
-  });
-});
-
-// @desc    Get all devices
-// @route   GET /api/v1/tagCreation/getAllDevices
-// @access  Public
-exports.getAllDevices = asyncHandler(async (req, res, next) => {
-  const devices = await Device.find().sort({ createdAt: -1 });
-  
-  console.log('Devices found:', devices.length);
-  
-  res.status(200).json({
-    success: true,
-    count: devices.length,
-    data: devices
+    data: topics
   });
 });
 
@@ -137,9 +101,17 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
 exports.subscribeTopic = asyncHandler(async (req, res) => {
   const { topic } = req.body;
   console.log("subscribeTopic request:", topic);
+  
+  // Find the topic in Topics model to get device info
+  const topicDoc = await Topics.findOne({ topic });
+  if (!topicDoc) {
+    return res.status(404).json({ success: false, message: "Topic not found" });
+  }
+  
   const foundTopic = await SubscribedTopic.findOne({ topic });
   if (!foundTopic) {
-    await SubscribedTopic.create({ topic });
+    // Create new subscription with device info
+    await SubscribedTopic.create({ topic, device: topicDoc.device });
     return res.status(201).json({ success: true, data: [] });
   } else {
     await foundTopic.deleteOne();
@@ -153,6 +125,58 @@ exports.subscribeTopic = asyncHandler(async (req, res) => {
 exports.subscribeAllTopics = asyncHandler(async (req, res, next) => {
   const subscribedTopics = await SubscribedTopic.find({}, { _id: 0, topic: 1 });
   res.status(200).json({ success: true, data: subscribedTopics });
+});
+
+// @desc    Unsubscribe from a topic
+// @route   POST /api/v1/tagCreation/unsubscribeTopic
+// @access  Public
+exports.unsubscribeTopic = asyncHandler(async (req, res, next) => {
+  const { topic } = req.body;
+  console.log("unsubscribeTopic request:", topic);
+  
+  const foundTopic = await SubscribedTopic.findOne({ topic });
+  if (!foundTopic) {
+    return res.status(404).json({ success: false, message: "Topic not subscribed" });
+  }
+  
+  await foundTopic.deleteOne();
+  return res.status(200).json({ 
+    success: true, 
+    message: "Unsubscribed successfully",
+    data: { topic }
+  });
+});
+
+// @desc    Unsubscribe from all topics
+// @route   POST /api/v1/tagCreation/unsubscribeAllTopics
+// @access  Public
+exports.unsubscribeAllTopics = asyncHandler(async (req, res, next) => {
+  const result = await SubscribedTopic.deleteMany({});
+  
+  res.status(200).json({
+    success: true,
+    message: `Unsubscribed from ${result.deletedCount} topics`,
+    data: {
+      deletedCount: result.deletedCount
+    }
+  });
+});
+
+// @desc    Get all devices from Topics model
+// @route   GET /api/v1/getAllDevices
+// @access  Public
+exports.getAllDevices = asyncHandler(async (req, res, next) => {
+  // Get all topics and extract unique devices
+  const topics = await Topics.find().sort({ createdAt: -1 });
+  const devices = [...new Set(topics.map(topic => topic.device).filter(Boolean))];
+  
+  console.log('Devices found:', devices.length);
+  
+  res.status(200).json({
+    success: true,
+    count: devices.length,
+    data: devices.map(device => ({ device }))
+  });
 });
 
 // @desc    Subscribe to all existing topics

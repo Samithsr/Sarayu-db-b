@@ -10,6 +10,8 @@ const {
   assignTopicsEmployee,
   subscribeTopic,
   subscribeAllTopics,
+  unsubscribeTopic,
+  unsubscribeAllTopics,
   subScribeAllTopics,
   assignlayoutToManager,
   assignlayoutToEmployee
@@ -23,6 +25,8 @@ router.delete("/:id", deleteTag);
 router.post("/assignTopicsEmployee", assignTopicsEmployee);
 router.post("/subscribeTopic", subscribeTopic);
 router.get("/subscribeAllTopics", subscribeAllTopics);
+router.post("/unsubscribeTopic", unsubscribeTopic);
+router.post("/unsubscribeAllTopics", unsubscribeAllTopics);
 router.post("/subScribeAllTopics", subScribeAllTopics);
 router.post("/assignlayoutToManager/:id", assignlayoutToManager);
 router.post("/assignlayoutToEmployee/:id", assignlayoutToEmployee);

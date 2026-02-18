@@ -24,23 +24,23 @@ app.use(express.urlencoded({ extended: true }));
 
 // Debug middleware to log request body
 app.use((req, res, next) => {
-  console.log('Request body:', req.body);
-  console.log('Request headers:', req.headers);
-  
+  console.log("Request body:", req.body);
+  console.log("Request headers:", req.headers);
+
   // Fallback: Try to parse JSON if body is empty and content-length exists
   if (!req.body || Object.keys(req.body).length === 0) {
-    const contentLength = req.headers['content-length'];
+    const contentLength = req.headers["content-length"];
     if (contentLength && parseInt(contentLength) > 0) {
-      let body = '';
-      req.on('data', chunk => {
+      let body = "";
+      req.on("data", (chunk) => {
         body += chunk.toString();
       });
-      req.on('end', () => {
+      req.on("end", () => {
         try {
           req.body = JSON.parse(body);
-          console.log('Parsed fallback body:', req.body);
+          console.log("Parsed fallback body:", req.body);
         } catch (e) {
-          console.log('Failed to parse body as JSON');
+          console.log("Failed to parse body as JSON");
         }
         next();
       });
@@ -53,12 +53,14 @@ app.use((req, res, next) => {
 });
 
 // Enhanced CORS configuration
-app.use(cors({
-  origin: ['http://192.168.1.231:5173', ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+app.use(
+  cors({
+    origin: ["http://192.168.1.231:5173", "http://localhost:5173"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  }),
+);
 
 app.use(morgan("dev"));
 
@@ -74,8 +76,8 @@ app.use(
       // maxAge: 1000 * 60 * 60 * 24, // 1 day
       maxAge: 1000 * 5, // 30 days
     },
-    name: 'sessionId' // Custom session name
-  })
+    name: "sessionId", // Custom session name
+  }),
 );
 
 // Routes
@@ -130,27 +132,37 @@ app.get("/api/v1/getAllDevices", getAllDevices);
 
 // Direct Subscribe Topic Route
 // - POST /api/v1/subscribeTopic - Subscribe to topic
-const { subscribeTopic } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+const {
+  subscribeTopic,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/subscribeTopic", subscribeTopic);
 
 // Direct Subscribe All Topics Route
-// - GET /api/v1/subscribedlTopics - Get all subscribed topics
-const { subscribeAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.get("/api/v1/subscribedlTopics", subscribeAllTopics);
+// - GET /api/v1/getAllsubscribedTopics - Get all subscribed topics
+const {
+  subscribeAllTopics,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.get("/api/v1/getAllsubscribedTopics", subscribeAllTopics);
 
 // Direct Subscribe All Existing Topics Route
 // - POST /api/v1/subScribeAllTopics - Subscribe to all existing topics
-const { subScribeAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+const {
+  subScribeAllTopics,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/subScribeAllTopics", subScribeAllTopics);
 
 // Direct Assign Layout to Manager Route
 // - POST /api/v1/assignlayoutToManager/:id - Assign layout to manager
-const { assignlayoutToManager } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+const {
+  assignlayoutToManager,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/assignlayoutToManager/:id", assignlayoutToManager);
 
 // Direct Assign Layout to Employee Route
 // - POST /api/v1/assignlayoutToEmployee/:id - Assign layout to employee
-const { assignlayoutToEmployee } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+const {
+  assignlayoutToEmployee,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/assignlayoutToEmployee/:id", assignlayoutToEmployee);
 
 // Manager Dashboard Routes
