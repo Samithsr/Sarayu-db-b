@@ -3,6 +3,7 @@ const Employee = require("../../../models/employeeModel");
 const Manager = require("../../../models/manager-Model");
 const SubscribedTopic = require("../../../models/subscribedTopic-model");
 const Layout = require("../../../models/layout-model");
+const AssignTopics = require("../../../models/assignTopics");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 
@@ -94,7 +95,14 @@ exports.deleteTopics = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/tagCreation/assignTopicsEmployee
 // @access  Public
 exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
-  const { employeeId, topicIds } = req.body;
+  const { employeeId, topicId, topicIds } = req.body;
+  
+  // Handle both topicId and topicIds for flexibility
+  const finalTopicId = topicId || topicIds;
+  
+  if (!finalTopicId) {
+    return next(new ErrorResponse("Topic ID is required", 400));
+  }
   
   // Check if employee exists
   const employee = await Employee.findById(employeeId);
@@ -102,24 +110,45 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Employee not found with id of ${employeeId}`, 404));
   }
   
-  // Check if all topics exist
-  const topics = await Topics.find({ '_id': { $in: topicIds } });
-  if (topics.length !== topicIds.length) {
-    return next(new ErrorResponse('One or more topics not found', 404));
+  // Check if topic exists
+  const topic = await Topics.findById(finalTopicId);
+  if (!topic) {
+    return next(new ErrorResponse('Topic not found', 404));
   }
   
-  // Add topics to employee's assigned topics (if field exists)
-  // For now, we'll return assignment info
-  // You may need to add an 'assignedTopics' field to employee schema
+  // Check if assignment already exists for this employee
+  const existingAssignment = await AssignTopics.findOne({ employee: employeeId });
+  
+  if (existingAssignment) {
+    // Update existing assignment
+    existingAssignment.topic = finalTopicId;
+    await existingAssignment.save();
+  } else {
+    // Create new assignment
+    await AssignTopics.create({
+      employee: employeeId,
+      topic: finalTopicId,
+      company: employee.company,
+      manager: employee.manager
+    });
+  }
   
   res.status(200).json({
     success: true,
-    message: 'Topics assigned to employee successfully',
+    message: 'Topic assigned to employee successfully',
     data: {
       employeeId: employeeId,
       employeeName: employee.name,
-      assignedTopics: topics,
-      count: topics.length
+      assignedTopic: {
+        _id: topic._id,
+        topic: topic.topic,
+        label: topic.label,
+        device: topic.device,
+        __v: topic.__v,
+        createdAt: topic.createdAt,
+        updatedAt: topic.updatedAt
+      },
+      count: 1
     }
   });
 });

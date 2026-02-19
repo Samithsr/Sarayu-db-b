@@ -1,4 +1,6 @@
 const Employee = require("../../../models/employeeModel");
+const Topics = require("../../../models/topicsModel");
+const AssignTopics = require("../../../models/assignTopics");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 const jwt = require("jsonwebtoken");
@@ -136,9 +138,112 @@ const loginAsEmployee = asyncHandler(async (req, res, next) => {
   });
 });
 
+const addTagnamesToTheEmployee = async (req, res, next) => {
+  const { id } = req.params;
+  const { topics } = req.body;
+
+  console.log("Request body:", req.body);
+  console.log("Topics received:", topics);
+
+  if (!topics) {
+    return res.status(400).json({ error: "Topics field is required." });
+  }
+
+  if (!Array.isArray(topics)) {
+    return res.status(400).json({ error: "Topics must be an array." });
+  }
+
+  if (topics.length === 0) {
+    return res.status(400).json({ error: "Topics array cannot be empty." });
+  }
+
+  try {
+    // Get employee information first to get company and manager IDs
+    const employee = await Employee.findById(id).populate("manager");
+    if (!employee) {
+      return res.status(404).json({ error: "Employee not found." });
+    }
+    
+    console.log("Employee found:", employee);
+    console.log("Employee company:", employee.company);
+    console.log("Employee manager:", employee.manager);
+
+    // Create array of topic objects to save to Topics model
+    const createdTopics = [];
+    const topicAssignments = [];
+    
+    for (const topicData of topics) {
+      console.log("Processing topic:", topicData);
+      
+      // Check if topicData has required fields
+      if (!topicData.topic || !topicData.label || !topicData.device) {
+        return res.status(400).json({ 
+          error: "Each topic must have topic, label, and device fields." 
+        });
+      }
+      
+      // Create topic in Topics model if it doesn't exist
+      let existingTopic = await Topics.findOne({ topic: topicData.topic });
+      
+      if (!existingTopic) {
+        existingTopic = await Topics.create({
+          topic: topicData.topic,
+          label: topicData.label,
+          device: topicData.device
+        });
+        console.log("Created new topic:", existingTopic);
+      } else {
+        console.log("Using existing topic:", existingTopic);
+      }
+      
+      createdTopics.push(existingTopic);
+      
+      // Create assignment in assignTopics model
+      const assignment = await AssignTopics.create({
+        employee: id,
+        topic: existingTopic._id,
+        company: employee.company,
+        manager: employee.manager._id
+      });
+      
+      topicAssignments.push(assignment);
+    }
+
+    // Update employee with topics array
+    const updatedEmployee = await Employee.findByIdAndUpdate(
+      id,
+      { $addToSet: { topics: topics.map(t => t.topic) } },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      message: "Topics and assignments created successfully.",
+      Employee: {
+        _id: updatedEmployee._id,
+        name: updatedEmployee.name,
+        topics: updatedEmployee.topics,
+        company: updatedEmployee.company,
+        manager: updatedEmployee.manager
+      },
+      CreatedTopics: createdTopics,
+      Assignments: topicAssignments.map(assignment => ({
+        _id: assignment._id,
+        topic: assignment.topic
+      }))
+    });
+  } catch (error) {
+    console.error("Error updating topics:", error);
+    console.error("Validation error details:", error.message);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while updating topics.", details: error.message });
+  }
+};
+
 module.exports = {
   createEmployee,
   getAllEmployeesOfSameCompany,
   getEmployeesByManagerId,
-  loginAsEmployee
+  loginAsEmployee,
+  addTagnamesToTheEmployee
 };

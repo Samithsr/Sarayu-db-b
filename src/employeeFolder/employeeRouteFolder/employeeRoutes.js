@@ -6,7 +6,8 @@ const {
   createEmployee,
   getAllEmployeesOfSameCompany,
   getEmployeesByManagerId,
-  loginAsEmployee
+  loginAsEmployee,
+  addTagnamesToTheEmployee
 } = require("../employeeControlerFolder/employeeController");
 
 // Employee routes
@@ -15,5 +16,6 @@ router.get("/getAllEmployeesOfSameCompany/:companyId", getAllEmployeesOfSameComp
 router.get("/getAllEmployeesOfSameCompany", getAllEmployeesOfSameCompany);
 router.get("/getEmployeesByManagerId/:managerId", getEmployeesByManagerId);
 router.post("/login", loginAsEmployee);
+router.post("/addTagnamesToTheEmployee/:id", addTagnamesToTheEmployee);
 
 module.exports = router;
