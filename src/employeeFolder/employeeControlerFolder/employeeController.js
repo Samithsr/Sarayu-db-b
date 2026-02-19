@@ -1,6 +1,7 @@
 const Employee = require("../../../models/employeeModel");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
+const jwt = require("jsonwebtoken");
 
 //create a employee
 const createEmployee = asyncHandler(async (req, res, next) => {
@@ -92,8 +93,52 @@ const getEmployeesByManagerId = asyncHandler(async (req, res, next) => {
   }
 });
 
+//Login as employee
+const loginAsEmployee = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  
+  console.log("Login attempt for email:", email);
+  
+  const user = await Employee.findOne({ email })
+    .select("+password")
+    .populate("company")
+    .populate("manager");
+    
+  console.log("User found:", user ? "Yes" : "No");
+  
+  if (!user) {
+    return next(new ErrorResponse("Invalid Credentials", 401));
+  }
+  
+  const isMatch = await user.verifyPass(password);
+  console.log("Password match:", isMatch ? "Yes" : "No");
+  
+  if (!isMatch) {
+    return next(new ErrorResponse("Invalid Credentials", 401));
+  }
+  
+  // Set defaults if environment variables are missing
+  const jwtSecret = process.env.JWT_SECRET || 'x-auth-token';
+  const jwtExpire = process.env.JWT_EXPIRE || '30d';
+  
+  console.log("JWT Secret:", jwtSecret ? "Set" : "Missing");
+  
+  const token = jwt.sign({ id: user._id }, jwtSecret, {
+    expiresIn: jwtExpire,
+  });
+  
+  console.log("Login successful for:", email);
+  
+  res.status(200).json({
+    success: true,
+    user,
+    token,
+  });
+});
+
 module.exports = {
   createEmployee,
   getAllEmployeesOfSameCompany,
-  getEmployeesByManagerId
+  getEmployeesByManagerId,
+  loginAsEmployee
 };

@@ -61,6 +61,35 @@ exports.deleteTag = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Delete multiple topics
+// @route   POST /api/v1/tagCreation/deleteTopics
+// @access  Public
+exports.deleteTopics = asyncHandler(async (req, res, next) => {
+  const { topic } = req.body;
+  
+  if (!topic || typeof topic !== 'string') {
+    return next(new ErrorResponse("Please provide a topic name", 400));
+  }
+  
+  // Find and delete topic by topic name
+  const deletedTopic = await Topics.findOneAndDelete({ topic });
+  
+  if (!deletedTopic) {
+    return next(new ErrorResponse('Topic not found', 404));
+  }
+  
+  // Also delete from SubscribedTopic model if exists
+  await SubscribedTopic.deleteOne({ topic });
+  
+  res.status(200).json({
+    success: true,
+    message: `Deleted topic "${topic}" successfully`,
+    data: {
+      deletedTopic: deletedTopic
+    }
+  });
+});
+
 // @desc    Assign topics to employee
 // @route   POST /api/v1/tagCreation/assignTopicsEmployee
 // @access  Public
@@ -228,20 +257,8 @@ exports.assignlayoutToManager = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Manager not found with id of ${id}`, 404));
   }
   
-  // Create layout assignment in layout-model
-  const layoutAssignment = await Layout.create({
-    name: layout.name,
-    description: layout.description || '',
-    layoutType: layout.layoutType || 'default',
-    components: layout.components || [],
-    company: manager.company,
-    manager: id
-  });
-  
-  res.status(200).json({ 
-    success: true, 
-    data: layoutAssignment 
-  });
+  await Manager.findByIdAndUpdate(id, { layout });
+  res.status(200).json({ success: true, data: [] });
 });
 
 // @desc    Assign layout to employee
@@ -257,19 +274,6 @@ exports.assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Employee not found with id of ${id}`, 404));
   }
   
-  // Create layout assignment in layout-model
-  const layoutAssignment = await Layout.create({
-    name: layout.name,
-    description: layout.description || '',
-    layoutType: layout.layoutType || 'default',
-    components: layout.components || [],
-    company: employee.company,
-    manager: employee.manager,
-    employee: id
-  });
-  
-  res.status(200).json({ 
-    success: true, 
-    data: layoutAssignment 
-  });
+  await Employee.findByIdAndUpdate(id, { layout });
+  res.status(200).json({ success: true, data: [] });
 });

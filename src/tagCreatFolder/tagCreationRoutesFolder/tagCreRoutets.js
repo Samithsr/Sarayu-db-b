@@ -7,6 +7,7 @@ const {
   getAllTopics,
   getAllDevices,
   deleteTag,
+  deleteTopics,
   assignTopicsEmployee,
   subscribeTopic,
   subscribeAllTopics,
@@ -22,13 +23,14 @@ router.post("/", createTag);
 router.get("/getAllTopics", getAllTopics);
 router.get("/getAllDevices", getAllDevices);
 router.delete("/:id", deleteTag);
+router.post("/deleteTopics", deleteTopics);
 router.post("/assignTopicsEmployee", assignTopicsEmployee);
 router.post("/subscribeTopic", subscribeTopic);
 router.get("/subscribeAllTopics", subscribeAllTopics);
 router.post("/unsubscribeTopic", unsubscribeTopic);
 router.post("/unsubscribeAllTopics", unsubscribeAllTopics);
 router.post("/subScribeAllTopics", subScribeAllTopics);
-router.post("/assignlayoutToManager/:id", assignlayoutToManager);
-router.post("/assignlayoutToEmployee/:id", assignlayoutToEmployee);
+router.post("/assignlayoutToManager/{manager_id}", assignlayoutToManager);
+router.post("/assignlayoutToEmployee/{employee_id}", assignlayoutToEmployee);
 
 module.exports = router;
