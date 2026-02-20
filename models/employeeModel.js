@@ -78,13 +78,16 @@ const employeeSchema = new mongoose.Schema(
   }
 );
 
+// Hash password before saving
 employeeSchema.pre("save", async function (next) {
+  // Only hash the password if it has been modified (or is new)
   if (!this.isModified("password")) {
-    // return next();
+    return;
   }
-  const salt = await bcrypt.genSalt(10);
+
+  // Hash password with cost of 12
+  const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-  // next();
 });
 
 employeeSchema.methods.getToken = function () {

@@ -138,19 +138,8 @@ const addTagnamesToTheManager = async (req, res, next) => {
   const { id } = req.params;
   const { topics } = req.body;
 
-  console.log("Request body:", req.body);
-  console.log("Topics received:", topics);
-
-  if (!topics) {
-    return res.status(400).json({ error: "Topics field is required." });
-  }
-
-  if (!Array.isArray(topics)) {
-    return res.status(400).json({ error: "Topics must be an array." });
-  }
-
-  if (topics.length === 0) {
-    return res.status(400).json({ error: "Topics array cannot be empty." });
+  if (!Array.isArray(topics) || topics.length === 0) {
+    return res.status(400).json({ error: "Topics must be a non-empty array." });
   }
 
   try {
@@ -159,17 +148,12 @@ const addTagnamesToTheManager = async (req, res, next) => {
     if (!manager) {
       return res.status(404).json({ error: "Manager not found." });
     }
-    
-    console.log("Manager found:", manager);
-    console.log("Manager company:", manager.company);
 
     // Create array of topic objects to save to Topics model
     const createdTopics = [];
     const topicAssignments = [];
     
     for (const topicData of topics) {
-      console.log("Processing topic:", topicData);
-      
       // Check if topicData has required fields
       if (!topicData.topic || !topicData.label || !topicData.device) {
         return res.status(400).json({ 
@@ -186,25 +170,22 @@ const addTagnamesToTheManager = async (req, res, next) => {
           label: topicData.label,
           device: topicData.device
         });
-        console.log("Created new topic:", existingTopic);
-      } else {
-        console.log("Using existing topic:", existingTopic);
       }
       
       createdTopics.push(existingTopic);
       
-      // Create assignment in assignTopics model with proper company ID
+      // Create assignment in assignTopics model
       const assignment = await AssignTopics.create({
         employee: id, // Using manager ID as employee for this case
         topic: existingTopic._id,
-        company: manager.company, // Use manager's company ID
+        company: manager.company,
         manager: id
       });
       
       topicAssignments.push(assignment);
     }
 
-    // Update manager with topics array (save directly to manager)
+    // Update manager with topics array
     const updatedManager = await Manager.findByIdAndUpdate(
       id,
       { $addToSet: { topics: topics.map(t => t.topic) } },
@@ -227,10 +208,137 @@ const addTagnamesToTheManager = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Error updating topics:", error);
-    console.error("Validation error details:", error.message);
-    return res
-      .status(500)
-      .json({ error: "An error occurred while updating topics.", details: error.message });
+    return res.status(400).json({ error: error.message });
+  }
+};
+
+const assignDigitalMeterToManager = async (req, res) => {
+  console.log("=== assignDigitalMeterToManager called ===");
+  console.log("Request params:", req.params);
+  console.log("Request body:", req.body);
+  
+  try {
+    const { id } = req.params;
+    console.log("Looking for manager with ID:", id);
+    const updates = req.body;
+    console.log("Request body:", updates);
+    
+    const manager = await Manager.findById(id);
+    console.log("Manager found:", manager ? "Yes" : "No");
+    console.log("Manager data:", manager);
+    
+    if (!manager) {
+      console.log("Returning 404 - Manager not found");
+      return res.status(404).json({ error: "Manager not found" });
+    }
+
+    const { assignedDigitalMeters } = updates;
+    console.log("Assigned digital meters from request:", assignedDigitalMeters);
+    
+    if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
+      assignedDigitalMeters.forEach((newMeter) => {
+        const existingMeterIndex = manager.assignedDigitalMeters.findIndex(
+          (meter) => meter.topic === newMeter.topic
+        );
+        console.log("Processing meter:", newMeter.topic, "existing index:", existingMeterIndex);
+        
+        if (existingMeterIndex !== -1) {
+          manager.assignedDigitalMeters[existingMeterIndex] = {
+            ...manager.assignedDigitalMeters[existingMeterIndex],
+            ...newMeter,
+          };
+          console.log("Updated existing meter at index:", existingMeterIndex);
+        } else {
+          manager.assignedDigitalMeters.push(newMeter);
+          console.log("Added new meter:", newMeter.topic);
+        }
+      });
+    }
+    delete updates.assignedDigitalMeters;
+    Object.assign(manager, updates);
+    console.log("Saving manager with updates:", manager);
+    await manager.save();
+    console.log("Manager saved successfully");
+
+    res.status(200).json(manager);
+  } catch (error) {
+    console.error("Error in assignDigitalMeterToManager:", error);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const assignDigitalMeterManager = (req, res, next) => {
+  console.log("=== assignDigitalMeterManager called ===");
+  console.log("Request body:", req.body);
+  
+  try {
+    const { assignedDigitalMeters } = req.body;
+    console.log("Assigned digital meters from request:", assignedDigitalMeters);
+    
+    if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
+      assignedDigitalMeters.forEach((newMeter) => {
+        console.log("Processing meter:", newMeter.topic);
+        
+        // Find or create topic in Topics model
+        Topics.findOne({ topic: newMeter.topic }).then(existingTopic => {
+          console.log("Existing topic found:", existingTopic ? "Yes" : "No");
+          
+          if (!existingTopic) {
+            console.log("Creating new topic:", newMeter.topic);
+            Topics.create({
+              topic: newMeter.topic,
+              label: newMeter.topic, // Use topic as label for simplicity
+              device: newMeter.meterType || "default" // Use meterType as device
+            }).then(createdTopic => {
+              console.log("New topic created:", createdTopic._id);
+              
+              // Create assignment in assignTopics model
+              AssignTopics.create({
+                employee: null, // No employee for manager assignment
+                topic: createdTopic._id,
+                company: null, // No company for manager assignment
+                manager: null // No manager for manager assignment
+              }).then(assignment => {
+                console.log("Assignment created:", assignment._id);
+              });
+            });
+          } else {
+            // Create assignment for existing topic
+            AssignTopics.create({
+              employee: null,
+              topic: existingTopic._id,
+              company: null,
+              manager: null
+            }).then(assignment => {
+              console.log("Assignment created:", assignment._id);
+            });
+          }
+        });
+      });
+    }
+
+    // Update all managers with the new digital meters
+    Manager.updateMany(
+      {},
+      { $addToSet: { assignedDigitalMeters: { $each: assignedDigitalMeters } } }
+    ).then(updatedManagers => {
+      console.log("Updated managers count:", updatedManagers.modifiedCount);
+      
+      res.status(200).json({
+        message: "Digital meters assigned to all managers successfully.",
+        updatedCount: updatedManagers.modifiedCount
+      });
+    }).catch(error => {
+      console.error("Error in assignDigitalMeterManager:", error);
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+      return res.status(400).json({ error: error.message });
+    });
+  } catch (error) {
+    console.error("Error in assignDigitalMeterManager:", error);
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    return res.status(400).json({ error: error.message });
   }
 };
 
@@ -239,5 +347,7 @@ module.exports = {
   getAllManager,
   getManagerByCompanyId,
   loginAsManager,
-  addTagnamesToTheManager
+  addTagnamesToTheManager,
+  assignDigitalMeterToManager,
+  assignDigitalMeterManager
 };

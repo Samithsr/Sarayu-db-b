@@ -108,10 +108,6 @@ app.use("/api/v1/manager", managerRoutes);
 // - DELETE /api/v1/employee/:id - Delete employee
 app.use("/api/v1/employee", employeeRoutes);
 
-// Manager Routes
-// - POST /api/v1/manager/create/:companyId - Create new manager
-app.use("/api/v1/manager", managerRoutes);
-
 // Tag Creation Routes
 // - POST /api/v1/tagCreation/tagCreation - Create new tag
 // - GET /api/v1/tagCreation/all - Get all tags
