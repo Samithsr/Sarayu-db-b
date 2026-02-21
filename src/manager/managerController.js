@@ -2,6 +2,7 @@ const Manager = require("../../models/manager-Model");
 const Company = require("../../models/company-model");
 const Topics = require("../../models/topicsModel");
 const AssignTopics = require("../../models/assignTopics");
+const DigitalMeter = require("../../models/digitalMeter");
 const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../middleware/asyncHandler");
 const jwt = require("jsonwebtoken");
@@ -217,54 +218,75 @@ const assignDigitalMeterToManager = async (req, res) => {
   console.log("Request params:", req.params);
   console.log("Request body:", req.body);
   
-  try {
-    const { id } = req.params;
-    console.log("Looking for manager with ID:", id);
-    const updates = req.body;
-    console.log("Request body:", updates);
-    
-    const manager = await Manager.findById(id);
-    console.log("Manager found:", manager ? "Yes" : "No");
-    console.log("Manager data:", manager);
-    
-    if (!manager) {
-      console.log("Returning 404 - Manager not found");
-      return res.status(404).json({ error: "Manager not found" });
-    }
-
-    const { assignedDigitalMeters } = updates;
-    console.log("Assigned digital meters from request:", assignedDigitalMeters);
-    
-    if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
-      assignedDigitalMeters.forEach((newMeter) => {
-        const existingMeterIndex = manager.assignedDigitalMeters.findIndex(
-          (meter) => meter.topic === newMeter.topic
-        );
-        console.log("Processing meter:", newMeter.topic, "existing index:", existingMeterIndex);
-        
-        if (existingMeterIndex !== -1) {
-          manager.assignedDigitalMeters[existingMeterIndex] = {
-            ...manager.assignedDigitalMeters[existingMeterIndex],
-            ...newMeter,
-          };
-          console.log("Updated existing meter at index:", existingMeterIndex);
-        } else {
-          manager.assignedDigitalMeters.push(newMeter);
-          console.log("Added new meter:", newMeter.topic);
-        }
-      });
-    }
-    delete updates.assignedDigitalMeters;
-    Object.assign(manager, updates);
-    console.log("Saving manager with updates:", manager);
-    await manager.save();
-    console.log("Manager saved successfully");
-
-    res.status(200).json(manager);
-  } catch (error) {
-    console.error("Error in assignDigitalMeterToManager:", error);
-    res.status(400).json({ error: error.message });
+  const { id } = req.params;
+  const updates = req.body;
+  console.log("Looking for manager with ID:", id);
+  
+  const manager = await Manager.findById(id);
+  console.log("Manager found:", manager ? "Yes" : "No");
+  
+  if (!manager) {
+    return res.status(404).json({ error: "Manager not found" });
   }
+
+  const { assignedDigitalMeters } = updates;
+  console.log("Assigned digital meters from request:", assignedDigitalMeters);
+  
+  if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
+    assignedDigitalMeters.forEach(async (newMeter) => {
+      console.log("Processing meter:", newMeter.topic);
+      
+      // Update manager's assignedDigitalMeters array (existing logic)
+      const existingMeterIndex = manager.assignedDigitalMeters.findIndex(
+        (meter) => meter.topic === newMeter.topic
+      );
+      
+      if (existingMeterIndex !== -1) {
+        manager.assignedDigitalMeters[existingMeterIndex] = {
+          ...manager.assignedDigitalMeters[existingMeterIndex],
+          ...newMeter,
+        };
+        console.log("Updated existing meter at index:", existingMeterIndex);
+      } else {
+        manager.assignedDigitalMeters.push(newMeter);
+        console.log("Added new meter:", newMeter.topic);
+      }
+      
+      // Save to DigitalMeter model (new logic)
+      try {
+        await DigitalMeter.findOneAndUpdate(
+          { 
+            topic: newMeter.topic,
+            assignedTo: id,
+            assignedToType: 'manager'
+          },
+          {
+            topic: newMeter.topic,
+            meterType: newMeter.meterType,
+            minValue: newMeter.minValue,
+            maxValue: newMeter.maxValue,
+            ticks: newMeter.ticks,
+            label: newMeter.label,
+            assignedTo: id,
+            assignedToType: 'manager',
+            company: manager.company
+          },
+          { upsert: true, new: true }
+        );
+        console.log("Saved digital meter to DigitalMeter model:", newMeter.topic);
+      } catch (error) {
+        console.error("Error saving digital meter to DigitalMeter model:", error);
+      }
+    });
+  }
+  
+  delete updates.assignedDigitalMeters;
+  Object.assign(manager, updates);
+  console.log("Saving manager with updates:", manager);
+  await manager.save();
+  console.log("Manager saved successfully");
+
+  res.status(200).json(manager);
 };
 
 const assignDigitalMeterManager = (req, res, next) => {

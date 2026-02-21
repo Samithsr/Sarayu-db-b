@@ -1,6 +1,7 @@
 const Employee = require("../../../models/employeeModel");
 const Topics = require("../../../models/topicsModel");
 const AssignTopics = require("../../../models/assignTopics");
+const DigitalMeter = require("../../../models/digitalMeter");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
 const jwt = require("jsonwebtoken");
@@ -139,18 +140,18 @@ const loginAsEmployee = asyncHandler(async (req, res, next) => {
 });
 
 const addTagnamesToTheEmployee = async (req, res, next) => {
-  const { id } = req.params;
-  const { topics } = req.body;
-
-  console.log("=== addTagnamesToTheEmployee called ===");
-  console.log("Employee ID:", id);
-  console.log("Topics received:", topics);
-
-  if (!Array.isArray(topics) || topics.length === 0) {
-    return res.status(400).json({ error: "Topics must be a non-empty array." });
-  }
-
   try {
+    const { id } = req.params;
+    const { topics } = req.body;
+
+    console.log("=== addTagnamesToTheEmployee called ===");
+    console.log("Employee ID:", id);
+    console.log("Topics received:", topics);
+
+    if (!Array.isArray(topics) || topics.length === 0) {
+      return res.status(400).json({ error: "Topics must be a non-empty array." });
+    }
+
     // Get employee information first to get company and manager IDs
     console.log("Looking for employee with ID:", id);
     const employee = await Employee.findById(id).populate("manager");
@@ -228,7 +229,7 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
   }
 };
 
-const assignDigitalMeterToEmployee = async (req, res) => {
+const assignDigitalMeterToEmployee = async (req, res, next) => {
   try {
     console.log("=== assignDigitalMeterToEmployee called ===");
     console.log("Request params:", req.params);
@@ -292,7 +293,7 @@ const assignDigitalMeterToEmployee = async (req, res) => {
     
     if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
       console.log("Processing", assignedDigitalMeters.length, "digital meters");
-      assignedDigitalMeters.forEach((newMeter, index) => {
+      assignedDigitalMeters.forEach(async (newMeter, index) => {
         console.log(`Processing meter ${index}:`, newMeter);
         console.log("Current employee assignedDigitalMeters:", employee.assignedDigitalMeters);
         console.log("Employee assignedDigitalMeters type:", typeof employee.assignedDigitalMeters);
@@ -302,6 +303,7 @@ const assignDigitalMeterToEmployee = async (req, res) => {
           employee.assignedDigitalMeters = [];
         }
         
+        // Update employee's assignedDigitalMeters array (existing logic)
         const existingMeterIndex = employee.assignedDigitalMeters.findIndex(
           (meter) => meter && meter.topic === newMeter.topic
         );
@@ -316,6 +318,32 @@ const assignDigitalMeterToEmployee = async (req, res) => {
         } else {
           employee.assignedDigitalMeters.push(newMeter);
           console.log("Added new meter:", newMeter.topic);
+        }
+        
+        // Save to DigitalMeter model (new logic)
+        try {
+          await DigitalMeter.findOneAndUpdate(
+            { 
+              topic: newMeter.topic,
+              assignedTo: id,
+              assignedToType: 'employee'
+            },
+            {
+              topic: newMeter.topic,
+              meterType: newMeter.meterType,
+              minValue: newMeter.minValue,
+              maxValue: newMeter.maxValue,
+              ticks: newMeter.ticks,
+              label: newMeter.label,
+              assignedTo: id,
+              assignedToType: 'employee',
+              company: employee.company
+            },
+            { upsert: true, new: true }
+          );
+          console.log("Saved digital meter to DigitalMeter model:", newMeter.topic);
+        } catch (error) {
+          console.error("Error saving digital meter to DigitalMeter model:", error);
         }
       });
     }
@@ -341,44 +369,6 @@ const assignDigitalMeterToEmployee = async (req, res) => {
         message: error.message,
         stack: error.stack
       }
-    });
-  }
-};
-
-const getAllUserTopics = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 4;
-    const skip = (page - 1) * limit;
-
-    const employee = await Employee.findById(id, { _id: 0, topics: 1 });
-
-    if (!employee || !employee.topics) {
-      return res.status(404).json({
-        success: false,
-        message: "No topics found for this user",
-      });
-    }
-
-    const allTopics = employee.topics;
-    const totalTopics = allTopics.length;
-
-    const paginatedTopics = allTopics.slice(skip, skip + limit);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        topics: paginatedTopics,
-        totalTopics: totalTopics,
-        currentPage: page,
-        totalPages: Math.ceil(totalTopics / limit),
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
     });
   }
 };
@@ -455,6 +445,44 @@ const assignDigitalMeterEmployee = (req, res, next) => {
     console.error("Error details:", error.message);
     console.error("Error stack:", error.stack);
     return res.status(400).json({ error: error.message });
+  }
+};
+
+const getAllUserTopics = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 4;
+    const skip = (page - 1) * limit;
+
+    const employee = await Employee.findById(id, { _id: 0, topics: 1 });
+
+    if (!employee || !employee.topics) {
+      return res.status(404).json({
+        success: false,
+        message: "No topics found for this user",
+      });
+    }
+
+    const allTopics = employee.topics;
+    const totalTopics = allTopics.length;
+
+    const paginatedTopics = allTopics.slice(skip, skip + limit);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        topics: paginatedTopics,
+        totalTopics: totalTopics,
+        currentPage: page,
+        totalPages: Math.ceil(totalTopics / limit),
+      },
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
