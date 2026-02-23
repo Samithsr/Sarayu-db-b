@@ -15,7 +15,10 @@ const {
   unsubscribeAllTopics,
   subScribeAllTopics,
   assignlayoutToManager,
-  assignlayoutToEmployee
+  assignlayoutToEmployee,
+  getRecent5Tagname,
+  getAllAssignedTopic,
+  deleteTagname
 } = require("../tagCreationControllerFolder/tagCreController");
 
 // Tag creation routes
@@ -30,7 +33,10 @@ router.get("/subscribeAllTopics", subscribeAllTopics);
 router.post("/unsubscribeTopic", unsubscribeTopic);
 router.post("/unsubscribeAllTopics", unsubscribeAllTopics);
 router.post("/subScribeAllTopics", subScribeAllTopics);
-router.post("/assignlayoutToManager/{manager_id}", assignlayoutToManager);
-router.post("/assignlayoutToEmployee/{employee_id}", assignlayoutToEmployee);
+router.post("/assignlayoutToManager/:id", assignlayoutToManager);
+router.post("/assignlayoutToEmployee/:id", assignlayoutToEmployee);
+router.get("/get-recent-5-tagname", getRecent5Tagname);
+router.get("/getAllAssignedTopic", getAllAssignedTopic);
+router.delete("/deleteTagname/:tagname", deleteTagname);
 
 module.exports = router;

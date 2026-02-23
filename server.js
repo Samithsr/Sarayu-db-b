@@ -161,6 +161,13 @@ const {
 } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.post("/api/v1/assignlayoutToEmployee/:id", assignlayoutToEmployee);
 
+// Direct Delete Tagname Route
+// - DELETE /api/v1/deleteTagname - Delete tag by tagname (from request body)
+const {
+  deleteTagname,
+} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
+app.delete("/api/v1/deleteTagname", deleteTagname);
+
 // Manager Dashboard Routes
 // - GET /api/v1/managerDashboard/getAllCompanies - Get all companies
 app.use("/api/v1/managerDashboard", mDashboardRoutes);

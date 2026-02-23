@@ -6,6 +6,28 @@ const Layout = require("../../../models/layout-model");
 const AssignTopics = require("../../../models/assignTopics");
 const ErrorResponse = require("../../../utils/errorResponse");
 const asyncHandler = require("../../../middleware/asyncHandler");
+const redisClient = require("../../../config/redis");
+
+// Redis cache utilities
+const CACHE_PREFIX = "sarayu:";
+const TTL_LONG = 3600; // 1 hour
+
+const safeRedisGet = async (key) => {
+  try {
+    return await redisClient.get(key);
+  } catch (error) {
+    console.error('Redis get error:', error);
+    return null;
+  }
+};
+
+const safeRedisSet = async (key, value, ttl) => {
+  try {
+    await redisClient.setEx(key, ttl, JSON.stringify(value));
+  } catch (error) {
+    console.error('Redis set error:', error);
+  }
+};
 
 // @desc    Create a new tag
 // @route   POST /api/v1/tagCreation
@@ -116,13 +138,23 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Topic not found', 404));
   }
   
-  // Check if assignment already exists for this employee
-  const existingAssignment = await AssignTopics.findOne({ employee: employeeId });
+  // Check if topic is already assigned to another employee under the same manager
+  const existingAssignment = await AssignTopics.findOne({ 
+    topic: finalTopicId,
+    manager: employee.manager
+  });
   
-  if (existingAssignment) {
+  if (existingAssignment && existingAssignment.employee.toString() !== employeeId) {
+    return next(new ErrorResponse("This topic is already assigned to another employee under the same manager", 400));
+  }
+  
+  // Check if assignment already exists for this employee
+  const employeeAssignment = await AssignTopics.findOne({ employee: employeeId });
+  
+  if (employeeAssignment) {
     // Update existing assignment
-    existingAssignment.topic = finalTopicId;
-    await existingAssignment.save();
+    employeeAssignment.topic = finalTopicId;
+    await employeeAssignment.save();
   } else {
     // Create new assignment
     await AssignTopics.create({
@@ -286,7 +318,32 @@ exports.assignlayoutToManager = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Manager not found with id of ${id}`, 404));
   }
   
+  // Update manager with layout (existing logic)
   await Manager.findByIdAndUpdate(id, { layout });
+  
+  // Save to Layout model (new logic)
+  try {
+    await Layout.findOneAndUpdate(
+      { 
+        manager: id,
+        employee: null
+      },
+      {
+        name: layout.name || `Manager Layout ${id}`,
+        description: layout.description || `Layout for manager ${manager.name}`,
+        layoutType: layout.layoutType || "layout1",
+        components: layout.components || [],
+        company: manager.company,
+        manager: id,
+        employee: null
+      },
+      { upsert: true, new: true }
+    );
+    console.log("Layout saved to Layout model for manager:", id);
+  } catch (error) {
+    console.error("Error saving layout to Layout model:", error);
+  }
+  
   res.status(200).json({ success: true, data: [] });
 });
 
@@ -303,6 +360,141 @@ exports.assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Employee not found with id of ${id}`, 404));
   }
   
+  // Update employee with layout (existing logic)
   await Employee.findByIdAndUpdate(id, { layout });
+  
+  // Save to Layout model (new logic)
+  try {
+    await Layout.findOneAndUpdate(
+      { 
+        employee: id,
+        manager: null
+      },
+      {
+        name: layout.name || `Employee Layout ${id}`,
+        description: layout.description || `Layout for employee ${employee.name}`,
+        layoutType: layout.layoutType || "layout1",
+        components: layout.components || [],
+        company: employee.company,
+        manager: null,
+        employee: id
+      },
+      { upsert: true, new: true }
+    );
+    console.log("Layout saved to Layout model for employee:", id);
+  } catch (error) {
+    console.error("Error saving layout to Layout model:", error);
+  }
+  
   res.status(200).json({ success: true, data: [] });
+});
+
+// @desc    Get recent 5 tag names without messages
+// @route   GET /api/v1/tagCreation/get-recent-5-tagname
+// @access  Public
+exports.getRecent5Tagname = asyncHandler(async (req, res, next) => {
+  try {
+    const cacheKey = `${CACHE_PREFIX}recent-5-tagname`;
+    const cachedData = await safeRedisGet(cacheKey);
+
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
+
+    // Get topics that have messages (if MessagesModel exists)
+    let topicsWithMessages = [];
+    try {
+      topicsWithMessages = await MessagesModel.distinct("topic").lean();
+    } catch (error) {
+      console.log('MessagesModel not found, proceeding without message filtering');
+    }
+
+    // Get topics without messages, sorted by creation date, limited to 5
+    const topics = await Topics.find({ topic: { $nin: topicsWithMessages } })
+      .select("topic -_id")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const response = { success: true, data: topics };
+    await safeRedisSet(cacheKey, response, TTL_LONG);
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error in getRecent5Tagname:', error);
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+});
+
+// @desc    Get all assigned topics
+// @route   GET /api/v1/tagCreation/getAllAssignedTopic
+// @access  Public
+exports.getAllAssignedTopic = asyncHandler(async (req, res, next) => {
+  try {
+    // Get all assigned topics with populated data
+    const assignedTopics = await AssignTopics.find()
+      .populate('employee', 'name email')
+      .populate('topic', 'topic label device')
+      .populate('company', 'name')
+      .populate('manager', 'name email')
+      .sort({ createdAt: -1 });
+
+    console.log('Found assigned topics:', assignedTopics.length);
+
+    res.status(200).json({
+      success: true,
+      count: assignedTopics.length,
+      data: assignedTopics
+    });
+  } catch (error) {
+    console.error('Error in getAllAssignedTopic:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch assigned topics",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Delete tag by tag ID
+// @route   DELETE /api/v1/deleteTagname
+// @access  Public
+exports.deleteTagname = asyncHandler(async (req, res, next) => {
+  const { tagId } = req.body;
+  
+  if (!tagId) {
+    return next(new ErrorResponse("Tag ID is required in request body", 400));
+  }
+  
+  try {
+    // Find and delete topic by ID
+    const deletedTopic = await Topics.findByIdAndDelete(tagId);
+    
+    if (!deletedTopic) {
+      return next(new ErrorResponse(`Tag with ID "${tagId}" not found`, 404));
+    }
+    
+    // Also delete from SubscribedTopic model if exists (using topic name)
+    await SubscribedTopic.deleteOne({ topic: deletedTopic.topic });
+    
+    // Also delete any assignments related to this topic
+    await AssignTopics.deleteMany({ topic: deletedTopic._id });
+    
+    console.log(`Deleted tag with ID "${tagId}" successfully`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Tag with ID "${tagId}" deleted successfully`,
+      data: {
+        deletedTopic: deletedTopic,
+        tagId: tagId
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting tag by ID:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete tag",
+      error: error.message
+    });
+  }
 });
