@@ -373,6 +373,129 @@ const assignDigitalMeterToEmployee = async (req, res, next) => {
   }
 };
 
+const getAssignedDigitalMeterToEmployee = async (req, res, next) => {
+  try {
+    console.log("=== getAssignedDigitalMeterToEmployee called ===");
+    console.log("Request params:", req.params);
+    console.log("Request URL:", req.originalUrl);
+    console.log("Request method:", req.method);
+    
+    const { id } = req.params;
+    console.log("Extracted Employee ID:", id);
+    
+    if (!id) {
+      console.log("ERROR: Employee ID is missing");
+      return res.status(400).json({ error: "Employee ID is required" });
+    }
+    
+    console.log("Finding employee with ID:", id);
+    const employee = await Employee.findById(id)
+      .populate('company', 'name')
+      .populate('manager', 'name email');
+    
+    console.log("Employee found:", employee ? "Yes" : "No");
+    console.log("Employee data:", JSON.stringify(employee, null, 2));
+    
+    if (!employee) {
+      console.log("ERROR: Employee not found in database");
+      return res.status(404).json({ error: "Employee not found" });
+    }
+    
+    console.log("Employee assignedDigitalMeters:", employee.assignedDigitalMeters);
+    console.log("Is assignedDigitalMeters array:", Array.isArray(employee.assignedDigitalMeters));
+    console.log("AssignedDigitalMeters length:", employee.assignedDigitalMeters ? employee.assignedDigitalMeters.length : 0);
+    
+    // Get digital meters from DigitalMeter model for this employee
+    console.log("Querying DigitalMeter collection for assignedTo:", id, "assignedToType: 'employee'");
+    
+    // Try multiple query approaches to find the digital meters
+    let digitalMeters = [];
+    
+    try {
+      // Approach 1: Direct ObjectId match
+      digitalMeters = await DigitalMeter.find({ 
+        assignedTo: id, 
+        assignedToType: 'employee' 
+      }).sort({ createdAt: -1 });
+      console.log("Approach 1 - Direct query found:", digitalMeters.length);
+    } catch (error) {
+      console.error("Approach 1 failed:", error.message);
+    }
+    
+    if (digitalMeters.length === 0) {
+      try {
+        // Approach 2: String conversion
+        digitalMeters = await DigitalMeter.find({ 
+          assignedTo: id.toString(), 
+          assignedToType: 'employee' 
+        }).sort({ createdAt: -1 });
+        console.log("Approach 2 - String conversion found:", digitalMeters.length);
+      } catch (error) {
+        console.error("Approach 2 failed:", error.message);
+      }
+    }
+    
+    if (digitalMeters.length === 0) {
+      try {
+        // Approach 3: Find all and filter
+        const allDigitalMeters = await DigitalMeter.find({}).sort({ createdAt: -1 });
+        digitalMeters = allDigitalMeters.filter(dm => 
+          dm.assignedTo && dm.assignedTo.toString() === id && dm.assignedToType === 'employee'
+        );
+        console.log("Approach 3 - Filter all found:", digitalMeters.length);
+      } catch (error) {
+        console.error("Approach 3 failed:", error.message);
+      }
+    }
+    
+    console.log("Digital meters found in DigitalMeter model:", digitalMeters.length);
+    console.log("Digital meters data:", JSON.stringify(digitalMeters, null, 2));
+    
+    // Also check if there are any digital meters without proper assignment
+    const allDigitalMeters = await DigitalMeter.find({}).sort({ createdAt: -1 });
+    console.log("Total digital meters in database:", allDigitalMeters.length);
+    console.log("All digital meters:", allDigitalMeters.map(dm => ({ 
+      id: dm._id, 
+      topic: dm.topic, 
+      assignedTo: dm.assignedTo, 
+      assignedToType: dm.assignedToType 
+    })));
+    
+    // Combine employee's assignedDigitalMeters with DigitalMeter records
+    const assignedMeters = {
+      employee: {
+        _id: employee._id,
+        name: employee.name,
+        email: employee.email,
+        company: employee.company,
+        manager: employee.manager
+      },
+      assignedDigitalMeters: employee.assignedDigitalMeters || [],
+      digitalMeters: digitalMeters,
+      totalMeters: (employee.assignedDigitalMeters ? employee.assignedDigitalMeters.length : 0) + digitalMeters.length
+    };
+    
+    console.log("Final assignedMeters object:", JSON.stringify(assignedMeters, null, 2));
+    console.log("Total assigned meters:", assignedMeters.totalMeters);
+    
+    res.status(200).json({
+      success: true,
+      message: "Assigned digital meters retrieved successfully",
+      data: assignedMeters
+    });
+    
+  } catch (error) {
+    console.error("ERROR in getAssignedDigitalMeterToEmployee:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to retrieve assigned digital meters",
+      details: error.message
+    });
+  }
+};
+
 const assignDigitalMeterEmployee = (req, res, next) => {
   console.log("=== assignDigitalMeterEmployee called ===");
   console.log("Request body:", req.body);
@@ -493,6 +616,7 @@ module.exports = {
   loginAsEmployee,
   addTagnamesToTheEmployee,
   assignDigitalMeterToEmployee,
+  getAssignedDigitalMeterToEmployee,
   getAllUserTopics,
   assignDigitalMeterEmployee
 };

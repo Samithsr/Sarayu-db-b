@@ -138,32 +138,29 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Topic not found', 404));
   }
   
+  // Check if employee already has a topic assigned (prevent reassignment)
+  const existingEmployeeAssignment = await AssignTopics.findOne({ employee: employeeId });
+  if (existingEmployeeAssignment) {
+    return next(new ErrorResponse("This employee already has a topic assigned and cannot be reassigned", 400));
+  }
+  
   // Check if topic is already assigned to another employee under the same manager
   const existingAssignment = await AssignTopics.findOne({ 
     topic: finalTopicId,
     manager: employee.manager
   });
   
-  if (existingAssignment && existingAssignment.employee.toString() !== employeeId) {
+  if (existingAssignment) {
     return next(new ErrorResponse("This topic is already assigned to another employee under the same manager", 400));
   }
   
-  // Check if assignment already exists for this employee
-  const employeeAssignment = await AssignTopics.findOne({ employee: employeeId });
-  
-  if (employeeAssignment) {
-    // Update existing assignment
-    employeeAssignment.topic = finalTopicId;
-    await employeeAssignment.save();
-  } else {
-    // Create new assignment
-    await AssignTopics.create({
-      employee: employeeId,
-      topic: finalTopicId,
-      company: employee.company,
-      manager: employee.manager
-    });
-  }
+  // Create new assignment (no update allowed for existing assignments)
+  await AssignTopics.create({
+    employee: employeeId,
+    topic: finalTopicId,
+    company: employee.company,
+    manager: employee.manager
+  });
   
   res.status(200).json({
     success: true,
@@ -450,6 +447,52 @@ exports.getAllAssignedTopic = asyncHandler(async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch assigned topics",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Disable assigned topic (soft delete)
+// @route   POST /api/v1/disableAssignedTopic
+// @access  Public
+exports.disableAssignedTopic = asyncHandler(async (req, res, next) => {
+  const { assignmentId } = req.body;
+  
+  if (!assignmentId) {
+    return next(new ErrorResponse("Assignment ID is required", 400));
+  }
+  
+  try {
+    // Find the assignment and disable it (soft delete)
+    const assignment = await AssignTopics.findByIdAndUpdate(
+      assignmentId,
+      { 
+        status: 'disabled',
+        disabledAt: new Date()
+      },
+      { new: true }
+    );
+    
+    if (!assignment) {
+      return next(new ErrorResponse(`Assignment with ID "${assignmentId}" not found`, 404));
+    }
+    
+    console.log(`Assigned topic ${assignmentId} disabled successfully`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Assigned topic ${assignmentId} disabled successfully`,
+      data: {
+        assignmentId: assignmentId,
+        status: 'disabled',
+        disabledAt: assignment.disabledAt
+      }
+    });
+  } catch (error) {
+    console.error('Error disabling assigned topic:', error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to disable assigned topic",
       error: error.message
     });
   }

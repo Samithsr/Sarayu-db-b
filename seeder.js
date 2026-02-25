@@ -2,11 +2,11 @@ const connectDB = require("./config/db");
 const User = require("./models/userModel");
 const Company = require("./models/company-model");
 const MqttMessage = require("./models/topicsModel");
-const Manager = require("./models/managerModel");
+const Manager = require("./models/manager-Model");
 const Employee = require("./models/employeeModel");
 const TagCreation = require("./models/tagCreation-model");
 const Topics = require("./models/topicsModel");
-const Device = require("./models/device-model");
+const Device = require("./models/config-device");
 const dotenv = require("dotenv");
 const fs = require("fs");
 
@@ -46,16 +46,11 @@ connectDB();
 // Insert Admin Data
 const insertAdmin = async () => {
   try {
-    const adminWithRole = admin_data.map((user) => ({
-      ...user,
-      role: "admin",
-    }));
-
-    await User.create(adminWithRole);
-    console.log("✅ Admin inserted successfully!");
+    await User.create(admin_data);
+    console.log("✅ Employee inserted successfully!");
     process.exit();
   } catch (error) {
-    console.log("❌ Admin Insert Error:", error.message);
+    console.log("❌ Employee Insert Error:", error.message);
     process.exit();
   }
 };

@@ -9,6 +9,7 @@ const {
   loginAsEmployee,
   addTagnamesToTheEmployee,
   assignDigitalMeterToEmployee,
+  getAssignedDigitalMeterToEmployee,
   getAllUserTopics,
   assignDigitalMeterEmployee
 } = require("../employeeControlerFolder/employeeController");
@@ -35,6 +36,9 @@ console.log("Route registered: POST /addTagnamesToTheEmployee/:id");
 
 router.post("/assignDigitalMeterToEmployee/:id", assignDigitalMeterToEmployee);
 console.log("Route registered: POST /assignDigitalMeterToEmployee/:id");
+
+router.get("/getAssignedDigitalMeterToEmployee/:id", getAssignedDigitalMeterToEmployee);
+console.log("Route registered: GET /getAssignedDigitalMeterToEmployee/:id");
 
 router.get("/getAllUserTopics/:id", getAllUserTopics);
 console.log("Route registered: GET /getAllUserTopics/:id");

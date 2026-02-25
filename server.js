@@ -165,12 +165,18 @@ app.post("/api/v1/assignlayoutToEmployee/:id", assignlayoutToEmployee);
 // - DELETE /api/v1/deleteTagname - Delete tag by tagname (from request body)
 const {
   deleteTagname,
+  getAllAssignedTopic,
+  disableAssignedTopic,
 } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
 app.delete("/api/v1/deleteTagname", deleteTagname);
 
-// Manager Dashboard Routes
-// - GET /api/v1/managerDashboard/getAllCompanies - Get all companies
-app.use("/api/v1/managerDashboard", mDashboardRoutes);
+// Direct Get All Assigned Topics Route
+// - GET /api/v1/getAllAssignedTopic - Get all assigned topics
+app.get("/api/v1/getAllAssignedTopic", getAllAssignedTopic);
+
+// Direct Disable Assigned Topic Route
+// - POST /api/v1/disableAssignedTopic - Disable assigned topic (soft delete)
+app.post("/api/v1/disableAssignedTopic", disableAssignedTopic);
 
 app.get("/", (req, res) => {
   res.send("Sarayu Backend Server is running...");
