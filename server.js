@@ -8,6 +8,7 @@ const errorHandler = require("./middleware/error");
 const connectDB = require("./config/db");
 const redisClient = require("./config/redis");
 const RedisSessionStore = require("./config/redisSessionStore");
+const { getLatestLiveMessage } = require("./middleware/mqttHandler");
 const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
 const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employeeRoutes");
 const managerRoutes = require("./src/manager/managerRoutes");
@@ -178,12 +179,66 @@ app.get("/api/v1/getAllAssignedTopic", getAllAssignedTopic);
 // - POST /api/v1/disableAssignedTopic - Disable assigned topic (soft delete)
 app.post("/api/v1/disableAssignedTopic", disableAssignedTopic);
 
+// Direct MQTT Messages Route
+// - POST /api/v1/messages - Get latest live message for a topic
+app.post("/api/v1/messages", (req, res) => {
+  console.log("=== MQTT Messages API called ===");
+  console.log("Request body:", req.body);
+  
+  const { topic } = req.body;
+  if (!topic) {
+    console.log("ERROR: Topic is required");
+    return res.status(400).json({ success: false, message: "Topic is required" });
+  }
+  
+  console.log("Getting latest message for topic:", topic);
+  const latestMessage = getLatestLiveMessage(topic);
+  console.log("Latest message found:", latestMessage ? "Yes" : "No");
+  
+  if (!latestMessage) {
+    console.log("ERROR: No live message available for topic:", topic);
+    return res.status(404).json({ success: false, message: "No live message available" });
+  }
+  
+  console.log("Returning latest message:", latestMessage);
+  res.json({ success: true, message: latestMessage });
+});
+
 app.get("/", (req, res) => {
   res.send("Sarayu Backend Server is running...");
 });
 
 // db connection
 connectDB();
+
+// Initialize MQTT Handler
+console.log("Initializing MQTT Handler...");
+const { subscribeToTopic } = require("./middleware/mqttHandler");
+
+// Subscribe to initial topics after database connection
+setTimeout(async () => {
+  try {
+    const SubscribedTopic = require("./models/subscribedTopic-model");
+    const SubscribedTopicList = await SubscribedTopic.find({}, { _id: 0, topic: 1 });
+    
+    if (SubscribedTopicList?.length > 0) {
+      const topicsToSubscribe = [];
+      
+      SubscribedTopicList.forEach(({ topic }) => {
+        topicsToSubscribe.push(topic);              
+        topicsToSubscribe.push(`${topic}|backup`);  
+      });
+
+      await Promise.all(topicsToSubscribe.map(topic => subscribeToTopic(topic)));
+      console.log("MQTT topics (including backup topics) subscribed successfully");
+      console.log("Subscribed topics:", topicsToSubscribe);
+    } else {
+      console.log("No subscribed topics found in database");
+    }
+  } catch (err) {
+    console.error(`Error subscribing to topics: ${err.message}`);
+  }
+}, 5000);
 
 app.use(errorHandler);
 
