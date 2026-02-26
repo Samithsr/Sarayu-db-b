@@ -34,11 +34,11 @@ console.log("Route registered: POST /login");
 router.post("/addTagnamesToTheEmployee/:id", addTagnamesToTheEmployee);
 console.log("Route registered: POST /addTagnamesToTheEmployee/:id");
 
+// Single endpoint for all digital meter operations
 router.post("/assignDigitalMeterToEmployee/:id", assignDigitalMeterToEmployee);
-console.log("Route registered: POST /assignDigitalMeterToEmployee/:id");
-
-router.get("/getAssignedDigitalMeterToEmployee/:id", getAssignedDigitalMeterToEmployee);
-console.log("Route registered: GET /getAssignedDigitalMeterToEmployee/:id");
+router.put("/assignDigitalMeterToEmployee/:id", assignDigitalMeterToEmployee);
+router.get("/assignDigitalMeterToEmployee/:id", getAssignedDigitalMeterToEmployee);
+console.log("Route registered: /assignDigitalMeterToEmployee/:id (GET, POST, PUT)");
 
 router.get("/getAllUserTopics/:id", getAllUserTopics);
 console.log("Route registered: GET /getAllUserTopics/:id");
