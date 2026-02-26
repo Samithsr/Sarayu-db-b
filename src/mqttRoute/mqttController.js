@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const MessagesModel = require("../../models/topicsModel");
+const MessagesModel = require("../../models/messages-model");
 const TopicsModel = require("../../models/topicsModel");
-const AllTopicsModel = require("../../models/topicsModel");
+const AllTopicsModel = require("../../models/all-mqtt-messages");
 const redisClient = require("../../config/redis");
 const moment = require("moment");
 
@@ -769,12 +769,38 @@ router.get("/todays-highest", async (req, res) => {
   if (cachedData) return res.status(200).json(JSON.parse(cachedData));
 
   try {
-    const result = await MessagesModel.findOne({
-      topic,
-      timestamp: { $gte: start, $lte: end },
-    }).sort({ message: -1 }).lean();
+    const result = await MessagesModel.aggregate([
+      {
+        $match: {
+          topic,
+          timestamp: { $gte: start, $lte: end }
+        }
+      },
+      {
+        $addFields: {
+          numericValue: {
+            $cond: {
+              if: { $regexMatch: { input: "$message", regex: /^[0-9]*\.?[0-9]+$/ } },
+              then: { $toDouble: "$message" },
+              else: null
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          numericValue: { $ne: null, $exists: true }
+        }
+      },
+      {
+        $sort: { numericValue: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]);
 
-    const response = result || { message: "No data available" };
+    const response = result.length > 0 ? result[0] : { message: "No data available" };
     await safeRedisSet(cacheKey, response, TTL_SHORT);
     res.status(200).json(response);
   } catch (err) {

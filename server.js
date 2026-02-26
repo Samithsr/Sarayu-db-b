@@ -14,6 +14,7 @@ const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employe
 const managerRoutes = require("./src/manager/managerRoutes");
 const tagCreationRoutes = require("./src/tagCreatFolder/tagCreationRoutesFolder/tagCreRoutets");
 const mDashboardRoutes = require("./src/managerDashboard/mDashboardRouteFolder/mDashboardRoutes");
+const mqttRoutes = require("./src/mqttRoute/mqttRoute");
 
 dotenv.config();
 
@@ -116,6 +117,13 @@ app.use("/api/v1/employee", employeeRoutes);
 // - PUT /api/v1/tagCreation/:id - Update tag
 // - DELETE /api/v1/tagCreation/:id - Delete tag
 app.use("/api/v1/tagCreation", tagCreationRoutes);
+
+// MQTT Routes
+// - POST /api/v1/mqtt/topic-based-latest-message - Get latest message for topic
+// - GET /api/v1/mqtt/todays-highest - Get today's highest value
+// - GET /api/v1/mqtt/yesterdays-highest - Get yesterday's highest value
+// - GET /api/v1/mqtt/last-7-days-highest - Get last 7 days highest value
+app.use("/api/v1/mqtt", mqttRoutes);
 
 // Direct Topics Route
 // - GET /api/v1/getAllTopics - Get all topics

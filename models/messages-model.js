@@ -23,6 +23,6 @@ messagesSchema.index({ topic: 1 });
 messagesSchema.index({ timestamp: -1 });
 messagesSchema.index({ topic: 1, timestamp: -1 });
 
-const MessagesModel = mongoose.model("MessagesModel", messagesSchema);
+const MessagesModel = mongoose.model("messages", messagesSchema);
 
 module.exports = MessagesModel;
