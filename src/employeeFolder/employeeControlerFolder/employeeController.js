@@ -147,8 +147,11 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
     console.log("=== addTagnamesToTheEmployee called ===");
     console.log("Employee ID:", id);
     console.log("Topics received:", topics);
+    console.log("Topics type:", typeof topics);
+    console.log("Is array:", Array.isArray(topics));
 
     if (!Array.isArray(topics) || topics.length === 0) {
+      console.log("ERROR: Topics must be a non-empty array");
       return res.status(400).json({ error: "Topics must be a non-empty array." });
     }
 
@@ -171,42 +174,70 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
 
     // Create assignments in assignTopics model for each topic
     const topicAssignments = [];
+    const validTopics = [];
     
     for (const topic of topics) {
       console.log("Processing topic:", topic);
       
-      // Find or create topic in Topics model
-      let existingTopic = await Topics.findOne({ topic: topic });
-      console.log("Existing topic found:", existingTopic ? "Yes" : "No");
-      
-      if (!existingTopic) {
-        console.log("Creating new topic:", topic);
-        existingTopic = await Topics.create({
-          topic: topic,
-          label: topic, // Use topic as label for simplicity
-          device: "default" // Use default device
-        });
-        console.log("New topic created:", existingTopic._id);
+      if (!topic || typeof topic !== 'string') {
+        console.log("Skipping invalid topic:", topic);
+        continue;
       }
       
-      // Create assignment in assignTopics model
-      console.log("Creating assignment for topic:", existingTopic._id);
-      const assignment = await AssignTopics.create({
-        employee: id,
-        topic: existingTopic._id,
-        company: employee.company,
-        manager: employee.manager._id
-      });
+      validTopics.push(topic);
       
-      console.log("Assignment created:", assignment._id);
-      topicAssignments.push(assignment);
+      try {
+        // Find or create topic in Topics model
+        let existingTopic = await Topics.findOne({ topic: topic.trim() });
+        console.log("Existing topic found:", existingTopic ? "Yes" : "No");
+        
+        if (!existingTopic) {
+          console.log("Creating new topic:", topic);
+          existingTopic = await Topics.create({
+            topic: topic.trim(),
+            label: topic.trim(), // Use topic as label for simplicity
+            device: "default" // Use default device
+          });
+          console.log("New topic created:", existingTopic._id);
+        }
+        
+        // Check if assignment already exists
+        const existingAssignment = await AssignTopics.findOne({
+          employee: id,
+          topic: existingTopic._id
+        });
+        
+        if (!existingAssignment) {
+          // Create assignment in assignTopics model
+          console.log("Creating assignment for topic:", existingTopic._id);
+          const assignment = await AssignTopics.create({
+            employee: id,
+            topic: existingTopic._id,
+            company: employee.company,
+            manager: employee.manager._id
+          });
+          
+          console.log("Assignment created:", assignment._id);
+          topicAssignments.push(assignment);
+        } else {
+          console.log("Assignment already exists for topic:", topic);
+          topicAssignments.push(existingAssignment);
+        }
+      } catch (topicError) {
+        console.error("Error processing topic:", topic, topicError);
+        // Continue with other topics
+      }
     }
 
-    console.log("Updating employee with topics:", topics);
+    if (validTopics.length === 0) {
+      return res.status(400).json({ error: "No valid topics provided." });
+    }
+
+    console.log("Updating employee with topics:", validTopics);
     // Update employee with topics array
     const updatedEmployee = await Employee.findByIdAndUpdate(
       id,
-      { $addToSet: { topics: { $each: topics } } },
+      { $addToSet: { topics: { $each: validTopics } } },
       { new: true }
     );
 
@@ -219,7 +250,8 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
       assignments: topicAssignments.map(assignment => ({
         _id: assignment._id,
         topic: assignment.topic
-      }))
+      })),
+      processedTopics: validTopics
     });
   } catch (error) {
     console.error("Error updating topics:", error);

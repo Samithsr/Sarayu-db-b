@@ -120,10 +120,22 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
   const { employeeId, topicId, topicIds } = req.body;
   
   // Handle both topicId and topicIds for flexibility
-  const finalTopicId = topicId || topicIds;
+  let finalTopicIds = [];
   
-  if (!finalTopicId) {
-    return next(new ErrorResponse("Topic ID is required", 400));
+  if (topicId) {
+    // Single topic ID
+    finalTopicIds = [topicId];
+  } else if (topicIds) {
+    // Array of topic IDs
+    if (Array.isArray(topicIds)) {
+      finalTopicIds = topicIds;
+    } else {
+      return next(new ErrorResponse("topicIds must be an array", 400));
+    }
+  }
+  
+  if (!finalTopicIds || finalTopicIds.length === 0) {
+    return next(new ErrorResponse("Topic ID(s) are required", 400));
   }
   
   // Check if employee exists
@@ -132,53 +144,79 @@ exports.assignTopicsEmployee = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Employee not found with id of ${employeeId}`, 404));
   }
   
-  // Check if topic exists
-  const topic = await Topics.findById(finalTopicId);
-  if (!topic) {
-    return next(new ErrorResponse('Topic not found', 404));
+  // Validate all topics exist
+  const topics = await Topics.find({ '_id': { $in: finalTopicIds } });
+  if (topics.length === 0) {
+    return next(new ErrorResponse('No valid topics found', 404));
   }
   
-  // Check if employee already has a topic assigned (prevent reassignment)
-  const existingEmployeeAssignment = await AssignTopics.findOne({ employee: employeeId });
-  if (existingEmployeeAssignment) {
-    return next(new ErrorResponse("This employee already has a topic assigned and cannot be reassigned", 400));
+  if (topics.length !== finalTopicIds.length) {
+    return next(new ErrorResponse('One or more topics not found', 404));
   }
   
-  // Check if topic is already assigned to another employee under the same manager
-  const existingAssignment = await AssignTopics.findOne({ 
-    topic: finalTopicId,
-    manager: employee.manager
-  });
+  const assignments = [];
+  const errors = [];
   
-  if (existingAssignment) {
-    return next(new ErrorResponse("This topic is already assigned to another employee under the same manager", 400));
+  // Process each topic
+  for (const topicId of finalTopicIds) {
+    try {
+      // Check if topic is already assigned to another employee under the same manager
+      const existingAssignment = await AssignTopics.findOne({ 
+        topic: topicId,
+        manager: employee.manager
+      });
+      
+      if (existingAssignment) {
+        const topic = topics.find(t => t._id.toString() === topicId.toString());
+        errors.push(`Topic "${topic.topic}" is already assigned to another employee under the same manager`);
+        continue;
+      }
+      
+      // Check if this employee already has this specific topic assigned
+      const existingEmployeeAssignment = await AssignTopics.findOne({ 
+        employee: employeeId, 
+        topic: topicId 
+      });
+      
+      if (existingEmployeeAssignment) {
+        const topic = topics.find(t => t._id.toString() === topicId.toString());
+        errors.push(`Topic "${topic.topic}" is already assigned to this employee`);
+        continue;
+      }
+      
+      // Create new assignment
+      const assignment = await AssignTopics.create({
+        employee: employeeId,
+        topic: topicId,
+        company: employee.company,
+        manager: employee.manager
+      });
+      
+      assignments.push(assignment);
+      
+    } catch (error) {
+      errors.push(`Error assigning topic ${topicId}: ${error.message}`);
+    }
   }
   
-  // Create new assignment (no update allowed for existing assignments)
-  await AssignTopics.create({
-    employee: employeeId,
-    topic: finalTopicId,
-    company: employee.company,
-    manager: employee.manager
-  });
+  // Update employee's topics array
+  if (assignments.length > 0) {
+    await Employee.findByIdAndUpdate(
+      employeeId,
+      { $addToSet: { topics: { $each: finalTopicIds } } },
+      { new: true }
+    );
+  }
   
   res.status(200).json({
     success: true,
-    message: 'Topic assigned to employee successfully',
+    message: `${assignments.length} topic(s) assigned to employee successfully`,
     data: {
-      employeeId: employeeId,
-      employeeName: employee.name,
-      assignedTopic: {
-        _id: topic._id,
-        topic: topic.topic,
-        label: topic.label,
-        device: topic.device,
-        __v: topic.__v,
-        createdAt: topic.createdAt,
-        updatedAt: topic.updatedAt
-      },
-      count: 1
-    }
+      assignments: assignments,
+      assignedTopics: assignments.map(a => a.topic),
+      errors: errors
+    },
+    count: assignments.length
   });
 });
 
