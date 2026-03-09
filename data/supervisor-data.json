@@ -1,9 +1,0 @@
-[
-    {
-  "name": "John Supervisor",
-  "email": "john@techcorp.com",
-  "password": "supervisor123",
-  "phonenumber": "+1234567890",
-  "mqttTopic": "techcorp/supervisor/devices"
-}
-]

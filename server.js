@@ -1,255 +1,214 @@
+const winston = require("winston");
+const connectDB = require("./env/db");
 const express = require("express");
-const dotenv = require("dotenv");
-const cors = require("cors");
 const morgan = require("morgan");
-const session = require("express-session");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const fileupload = require("express-fileupload");
+const errorHandler = require("./middlewares/error");
+const dotenv = require("dotenv");
+const { sessionConfig } = require("./middlewares/session");
+const authRoute = require("./routers/auth-router");
+const supportmailRoute = require("./routers/supportmail-router");
+const mqttRoutes = require("./routers/mqttRoutes");
+const backupdbRoute = require("./src/backup/backupRoute");
+const http = require("http");
+const { Server } = require("socket.io");
+const { subscribeToTopic, getLatestLiveMessage } = require("./middlewares/mqttHandler");
+const SubscribedTopic = require("./src/models/subscribed-topic-model");
 
-const errorHandler = require("./middleware/error");
-const connectDB = require("./config/db");
-const redisClient = require("./config/redis");
-const RedisSessionStore = require("./config/redisSessionStore");
-const { getLatestLiveMessage } = require("./middleware/mqttHandler");
-const adminRoutes = require("./src/adminFolder/adminRouteFolder/adminRoutes");
-const employeeRoutes = require("./src/employeeFolder/employeeRouteFolder/employeeRoutes");
-const managerRoutes = require("./src/manager/managerRoutes");
-const tagCreationRoutes = require("./src/tagCreatFolder/tagCreationRoutesFolder/tagCreRoutets");
-const mDashboardRoutes = require("./src/managerDashboard/mDashboardRouteFolder/mDashboardRoutes");
-const mqttRoutes = require("./src/mqttRoute/mqttRoute");
+// Load environment variables
+dotenv.config({ path: "./.env" });
 
-dotenv.config();
-
+// Initialize Express
 const app = express();
-const PORT = process.env.PORT || 5000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Debug middleware to log request body
-app.use((req, res, next) => {
-  console.log("Request body:", req.body);
-  console.log("Request headers:", req.headers);
-
-  // Fallback: Try to parse JSON if body is empty and content-length exists
-  if (!req.body || Object.keys(req.body).length === 0) {
-    const contentLength = req.headers["content-length"];
-    if (contentLength && parseInt(contentLength) > 0) {
-      let body = "";
-      req.on("data", (chunk) => {
-        body += chunk.toString();
-      });
-      req.on("end", () => {
-        try {
-          req.body = JSON.parse(body);
-          console.log("Parsed fallback body:", req.body);
-        } catch (e) {
-          console.log("Failed to parse body as JSON");
-        }
-        next();
-      });
-    } else {
-      next();
-    }
-  } else {
-    next();
-  }
+// Logger configuration
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
 });
 
-// Enhanced CORS configuration
-app.use(
-  cors({
-    origin: ["http://192.168.1.231:5173", "http://localhost:5173"],
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
-  }),
-);
+// Middleware
+app.use(sessionConfig);
+app.use(express.json());
+app.use(fileupload());
+app.use(express.urlencoded({ extended: false }));
+app.use(cors({ 
+  origin: "http://localhost:5000", 
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true, // Enable credentials for sessions
+  exposedHeaders: ['Content-Length', 'Content-Disposition'],
+  maxAge: 86400
+}));
+app.use(cookieParser());
 
-app.use(morgan("dev"));
-
-// Session middleware with Redis
-app.use(
-  session({
-    store: new RedisSessionStore(),
-    secret: process.env.JWT_SECRET || "fallbacksecret",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: false, // Set to true in production with HTTPS
-      // maxAge: 1000 * 60 * 60 * 24, // 1 day
-      maxAge: 1000 * 5, // 30 days
-    },
-    name: "sessionId", // Custom session name
-  }),
-);
+// Increase request timeout and enable chunked responses
+app.use((req, res, next) => {
+  req.setTimeout(600000); // 10-minute timeout
+  res.setTimeout(600000); // 10-minute timeout
+  res.flush = res.flush || (() => {}); // Ensure flush is available
+  logger.info(`Requested to: ${req.url}`, {
+    method: req.method,
+    body: req.body,
+    session: req.session ? {
+      sessionId: req.sessionID,
+      user: req.session.user || null,
+      cookie: req.session.cookie || null
+    } : null,
+    headers: req.headers
+  });
+  next();
+});
 
 // Routes
-// Admin Authentication & User Management Routes
-// - POST /api/v1/auth/register - Register new user
-// - POST /api/v1/auth/login - User login
-// - POST /api/v1/auth/logout - User logout
-// - GET /api/v1/auth/me - Get current user
-// - GET /api/v1/auth/users - Get all users (manager/supervisor)
-// - GET /api/v1/auth/users/:id - Get single user (manager/supervisor)
-// - PUT /api/v1/auth/users/:id - Update user (manager only)
-// - DELETE /api/v1/auth/users/:id - Delete user (manager only)
-app.use("/api/v1/auth", adminRoutes);
-
-// Manager Routes
-// - POST /api/v1/manager/create - Create new manager
-// - GET /api/v1/manager/all - Get all managers
-// - GET /api/v1/manager/:id - Get single manager
-// - PUT /api/v1/manager/:id - Update manager
-// - DELETE /api/v1/manager/:id - Delete manager
-app.use("/api/v1/manager", managerRoutes);
-
-// Employee Routes
-// - POST /api/v1/employee/create - Create new employee
-// - GET /api/v1/employee/all - Get all employees
-// - GET /api/v1/employee/:id - Get single employee
-// - PUT /api/v1/employee/:id - Update employee
-// - DELETE /api/v1/employee/:id - Delete employee
-app.use("/api/v1/employee", employeeRoutes);
-
-// Tag Creation Routes
-// - POST /api/v1/tagCreation/tagCreation - Create new tag
-// - GET /api/v1/tagCreation/all - Get all tags
-// - GET /api/v1/tagCreation/:id - Get single tag
-// - PUT /api/v1/tagCreation/:id - Update tag
-// - DELETE /api/v1/tagCreation/:id - Delete tag
-app.use("/api/v1/tagCreation", tagCreationRoutes);
-
-// MQTT Routes
-// - POST /api/v1/mqtt/topic-based-latest-message - Get latest message for topic
-// - GET /api/v1/mqtt/todays-highest - Get today's highest value
-// - GET /api/v1/mqtt/yesterdays-highest - Get yesterday's highest value
-// - GET /api/v1/mqtt/last-7-days-highest - Get last 7 days highest value
+app.use("/api/v1/auth", authRoute);
+app.use("/api/v1/supportmail", supportmailRoute);
 app.use("/api/v1/mqtt", mqttRoutes);
+app.use("/api/v1/backupdb", backupdbRoute);
 
-// Direct Topics Route
-// - GET /api/v1/getAllTopics - Get all topics
-const { getAllTopics } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.get("/api/v1/getAllTopics", getAllTopics);
-
-// Direct Devices Route
-// - GET /api/v1/getAllDevices - Get all devices
-const { getAllDevices } = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.get("/api/v1/getAllDevices", getAllDevices);
-
-// Direct Subscribe Topic Route
-// - POST /api/v1/subscribeTopic - Subscribe to topic
-const {
-  subscribeTopic,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.post("/api/v1/subscribeTopic", subscribeTopic);
-
-// Direct Subscribe All Topics Route
-// - GET /api/v1/getAllsubscribedTopics - Get all subscribed topics
-const {
-  subscribeAllTopics,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.get("/api/v1/getAllsubscribedTopics", subscribeAllTopics);
-
-// Direct Subscribe All Existing Topics Route
-// - POST /api/v1/subScribeAllTopics - Subscribe to all existing topics
-const {
-  subScribeAllTopics,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.post("/api/v1/subScribeAllTopics", subScribeAllTopics);
-
-// Direct Assign Layout to Manager Route
-// - POST /api/v1/assignlayoutToManager/:id - Assign layout to manager
-const {
-  assignlayoutToManager,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.post("/api/v1/assignlayoutToManager/:id", assignlayoutToManager);
-
-// Direct Assign Layout to Employee Route
-// - POST /api/v1/assignlayoutToEmployee/:id - Assign layout to employee
-const {
-  assignlayoutToEmployee,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.post("/api/v1/assignlayoutToEmployee/:id", assignlayoutToEmployee);
-
-// Direct Delete Tagname Route
-// - DELETE /api/v1/deleteTagname - Delete tag by tagname (from request body)
-const {
-  deleteTagname,
-  getAllAssignedTopic,
-  disableAssignedTopic,
-} = require("./src/tagCreatFolder/tagCreationControllerFolder/tagCreController");
-app.delete("/api/v1/deleteTagname", deleteTagname);
-
-// Direct Get All Assigned Topics Route
-// - GET /api/v1/getAllAssignedTopic - Get all assigned topics
-app.get("/api/v1/getAllAssignedTopic", getAllAssignedTopic);
-
-// Direct Disable Assigned Topic Route
-// - POST /api/v1/disableAssignedTopic - Disable assigned topic (soft delete)
-app.post("/api/v1/disableAssignedTopic", disableAssignedTopic);
-
-// Direct MQTT Messages Route
-// - POST /api/v1/messages - Get latest live message for a topic
-app.post("/api/v1/messages", (req, res) => {
-  console.log("=== MQTT Messages API called ===");
-  console.log("Request body:", req.body);
-  
-  const { topic } = req.body;
-  if (!topic) {
-    console.log("ERROR: Topic is required");
-    return res.status(400).json({ success: false, message: "Topic is required" });
-  }
-  
-  console.log("Getting latest message for topic:", topic);
-  const latestMessage = getLatestLiveMessage(topic);
-  console.log("Latest message found:", latestMessage ? "Yes" : "No");
-  
-  if (!latestMessage) {
-    console.log("ERROR: No live message available for topic:", topic);
-    return res.status(404).json({ success: false, message: "No live message available" });
-  }
-  
-  console.log("Returning latest message:", latestMessage);
-  res.json({ success: true, message: latestMessage });
-});
-
-app.get("/", (req, res) => {
-  res.send("Sarayu Backend Server is running...");
-});
-
-// db connection
-connectDB();
-
-// Initialize MQTT Handler
-console.log("Initializing MQTT Handler...");
-const { subscribeToTopic } = require("./middleware/mqttHandler");
-
-// Subscribe to initial topics after database connection
-setTimeout(async () => {
-  try {
-    const SubscribedTopic = require("./models/subscribedTopic-model");
-    const SubscribedTopicList = await SubscribedTopic.find({}, { _id: 0, topic: 1 });
-    
-    if (SubscribedTopicList?.length > 0) {
-      const topicsToSubscribe = [];
-      
-      SubscribedTopicList.forEach(({ topic }) => {
-        topicsToSubscribe.push(topic);              
-        topicsToSubscribe.push(`${topic}|backup`);  
-      });
-
-      await Promise.all(topicsToSubscribe.map(topic => subscribeToTopic(topic)));
-      console.log("MQTT topics (including backup topics) subscribed successfully");
-      console.log("Subscribed topics:", topicsToSubscribe);
-    } else {
-      console.log("No subscribed topics found in database");
-    }
-  } catch (err) {
-    console.error(`Error subscribing to topics: ${err.message}`);
-  }
-}, 5000);
-
+// Error handling
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+// Database connection
+connectDB();
+
+// Store active MQTT topics and their associated data
+const activeTopics = new Map();
+
+// Create HTTP server and Socket.IO instance
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+// Handle Socket.IO client connections and events
+io.on("connection", (socket) => {
+  const subscriptions = new Map();
+
+  socket.on("subscribeToTopic", async (topic) => {
+    if (!topic || subscriptions.has(topic)) return;
+
+    try {
+      socket.join(topic);
+      subscriptions.set(topic, true);
+
+      if (!activeTopics.has(topic)) {
+        activeTopics.set(topic, { 
+          clients: new Set(), 
+          lastMessage: null, 
+          lastSentTime: null, 
+          interval: null 
+        });
+        startTopicStream(topic);
+      }
+
+      activeTopics.get(topic).clients.add(socket.id);
+
+      const latestMessage = await getLatestLiveMessage(topic);
+      if (latestMessage) {
+        socket.emit("liveMessage", { success: true, message: latestMessage, topic });
+      }
+    } catch (error) {
+      logger.error(`Subscription error for ${topic}: ${error.message}`);
+    }
+  });
+
+  socket.on("unsubscribeFromTopic", (topic) => {
+    if (subscriptions.has(topic)) {
+      socket.leave(topic);
+      subscriptions.delete(topic);
+
+      if (activeTopics.has(topic)) {
+        const topicData = activeTopics.get(topic);
+        topicData.clients.delete(socket.id);
+
+        if (topicData.clients.size === 0) {
+          clearInterval(topicData.interval);
+          activeTopics.delete(topic);
+        }
+      }
+    }
+  });
+
+  // Clean up subscriptions on client disconnection
+  socket.on("disconnect", () => {
+    subscriptions.forEach((_, topic) => {
+      socket.leave(topic);
+
+      if (activeTopics.has(topic)) {
+        const topicData = activeTopics.get(topic);
+        topicData.clients.delete(socket.id);
+
+        if (topicData.clients.size === 0) {
+          clearInterval(topicData.interval);
+          activeTopics.delete(topic);
+        }
+      }
+    });
+    subscriptions.clear();
+  });
+});
+
+// Stream real-time messages for a given topic
+const startTopicStream = (topic) => {
+  const topicData = activeTopics.get(topic);
+
+  topicData.interval = setInterval(async () => {
+    try {
+      const currentTime = Date.now();
+      const latestMessage = await getLatestLiveMessage(topic);
+
+      if (latestMessage) {
+        const hasChanged = !topicData.lastMessage || 
+                          topicData.lastMessage.message.message !== latestMessage.message.message;
+        const timeSinceLastSent = topicData.lastSentTime ? 
+                                  (currentTime - topicData.lastSentTime) : 
+                                  Infinity;
+
+        if (hasChanged || timeSinceLastSent >= 1000) {
+          io.to(topic).emit("liveMessage", { success: true, message: latestMessage, topic });
+          topicData.lastMessage = latestMessage;
+          topicData.lastSentTime = currentTime;
+        }
+      }
+    } catch (error) {
+      logger.error(`Stream error for ${topic}: ${error.message}`);
+    }
+  }, 200);
+};
+
+// Start server with Socket.IO
+const port = process.env.PORT || 5000;
+server.listen(port, "0.0.0.0", () => {
+  logger.info(`API Server with Socket.IO running on port ${port}`);
+
+  setTimeout(async () => {
+    try {
+      const SubscribedTopicList = await SubscribedTopic.find({}, { _id: 0, topic: 1 });
+      if (SubscribedTopicList?.length > 0) {
+        const topicsToSubscribe = [];
+        
+        SubscribedTopicList.forEach(({ topic }) => {
+          topicsToSubscribe.push(topic);              
+          topicsToSubscribe.push(`${topic}|backup`);  
+        });
+
+        await Promise.all(topicsToSubscribe.map(topic => subscribeToTopic(topic)));
+        logger.info("MQTT topics (including backup topics) subscribed successfully");
+      }
+    } catch (err) {
+      logger.error(`Error subscribing to topics: ${err.message}`);
+    }
+  }, 5000);
 });

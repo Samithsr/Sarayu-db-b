@@ -1,7 +1,7 @@
 const asyncHandler = require("../../middlewares/asyncHandler");
 const ErrorResponse = require("../../middlewares/errorResponse");
-const Manager = require("../../src/models/manager-model");
 const Employee = require("../../src/models/employee-model");
+const Manager = require("../../src/models/manager-model");
 const Favorites = require("../../src/models/favorites-model");
 const AssignTopics = require("../../src/models/assign-topics-model");
 const AssignedDigitalMeter = require("../../src/models/assigned-digital-meter-model");
@@ -10,43 +10,36 @@ const GraphWhiteList = require("../../src/models/graphwhitelist-model");
 const { subscribeToDevice } = require("../../middlewares/mqttHandler");
 const logger = require("../../middlewares/logger");
 
-// Manager login
-const loginAsManager = asyncHandler(async (req, res, next) => {
+//Login as employee
+const loginAsEmployee = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
-  const user = await Manager.findOne({ email })
+  const user = await Employee.findOne({ email })
     .select("+password")
     .populate("company")
-    .populate("employees");
-
+    .populate("manager");
   if (!user) {
     return next(new ErrorResponse("Invalid Credentials", 401));
   }
-
   const isMatch = await user.verifyPass(password);
   if (!isMatch) {
     return next(new ErrorResponse("Invalid Credentials", 401));
   }
-
-  // Subscribe this user to their specific MQTT topic
-  if (user.mqttTopic) {
-    await subscribeToDevice(user, user.mqttTopic);
-  }
-
-  // Store manager data in session
+  
+  // Store employee data in session
   req.session.user = {
     id: user._id,
     name: user.name,
     email: user.email,
-    role: 'manager',
+    role: 'employee',
     company: user.company._id,
-    mqttTopic: user.mqttTopic
+    manager: user.manager ? user.manager._id : null
   };
   
   // Save session
   await req.session.save();
   
-  // Log manager session creation
-  logger.info("Manager session created", {
+  // Log employee session creation
+  logger.info("Employee session created", {
     sessionId: req.sessionID,
     user: req.session.user,
     timestamp: new Date().toISOString()
@@ -54,48 +47,33 @@ const loginAsManager = asyncHandler(async (req, res, next) => {
   
   res.status(200).json({
     success: true,
-    message: "Manager login successful",
+    message: "Employee login successful",
     user: {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: 'manager',
+      role: 'employee',
       company: user.company,
-      mqttTopic: user.mqttTopic
+      manager: user.manager
     }
   });
 });
 
-const getSinlgeManager = asyncHandler(async (req, res, next) => {
+const getSinlgeEmployee = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const manager = await Manager.findById(id)
+  const employee = await Employee.findById(id)
     .populate("company")
-    .populate("employees")
-  if (!manager) {
-    return next(new ErrorResponse(`No manager found with id ${id}`, 404));
+    .populate("manager");
+  if (!employee) {
+    return next(new ErrorResponse(`No employee found with id ${id}`, 404));
   }
   res.status(200).json({
     success: true,
-    data: manager,
+    data: employee,
   });
 });
 
-const getAllOperatorsForManager = asyncHandler(async (req, res, next) => {
-  const { id } = req.params;
-  const manager = await Manager.findById(id);
-  if (!manager) {
-    return next(
-      new ErrorResponse(`No manager found with id ${manager}`, 404)
-    );
-  }
-  const operators = await Employee.find({ manager: id });
-  res.status(200).json({
-    success: true,
-    data: operators,
-  });
-});
-
-const addFavoriteEmployee = async (req, res) => {
+const addFavoriteManager = async (req, res) => {
   try {
     const { id } = req.params;
     const { favoriteItem, itemType } = req.body;
@@ -104,32 +82,32 @@ const addFavoriteEmployee = async (req, res) => {
       return res.status(400).json({ message: "Favorite item is required" });
     }
 
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ message: "Manager not found" });
     }
 
-    // Check if favorite already exists for this employee
+    // Check if favorite already exists for this manager
     const existingFavorite = await Favorites.findOne({
       user: id,
-      userType: 'Employee',
+      userType: 'Manager',
       favoriteItem: favoriteItem
     });
 
     if (!existingFavorite) {
       await Favorites.create({
         user: id,
-        userType: 'Employee',
+        userType: 'Manager',
         favoriteItem: favoriteItem,
         itemType: itemType || 'topic',
         isActive: true
       });
     }
 
-    // Get all active favorites for the employee
+    // Get all active favorites for the manager
     const allFavorites = await Favorites.find({
       user: id,
-      userType: 'Employee',
+      userType: 'Manager',
       isActive: true
     }).select('favoriteItem itemType');
 
@@ -144,7 +122,8 @@ const addFavoriteEmployee = async (req, res) => {
   }
 };
 
-const removeFavoriteEmployee = async (req, res) => {
+// Remove a topic from favorites
+const removeFavoriteManager = async (req, res) => {
   try {
     const { id } = req.params;
     const { topic } = req.body;
@@ -153,20 +132,20 @@ const removeFavoriteEmployee = async (req, res) => {
       return res.status(400).json({ message: "Topic is required" });
     }
 
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ message: "Manager not found" });
     }
 
-    const index = employee.favorites.indexOf(topic);
+    const index = manager.favorites.indexOf(topic);
     if (index !== -1) {
-      employee.favorites.splice(index, 1);
-      await employee.save();
+      manager.favorites.splice(index, 1);
+      await manager.save();
     }
 
     res.status(200).json({
       message: "Topic removed from favorites",
-      favorites: employee.favorites,
+      favorites: manager.favorites,
     });
   } catch (error) {
     res
@@ -175,7 +154,7 @@ const removeFavoriteEmployee = async (req, res) => {
   }
 };
 
-const addTagnamesToTheEmployee = async (req, res, next) => {
+const addTagnamesToTheManager = async (req, res, next) => {
   const { id } = req.params;
   const { topics } = req.body;
 
@@ -184,35 +163,35 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
   }
 
   try {
-    // Check if employee exists
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ error: "Employee not found." });
+    // Check if manager exists
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ error: "Manager not found." });
     }
 
     // Add each topic to the AssignTopics table
     for (const topic of topics) {
-      // Check if topic already exists for this employee
+      // Check if topic already exists for this manager
       const existingTopic = await AssignTopics.findOne({
         user: id,
-        userType: 'Employee',
+        userType: 'Manager',
         topic: topic
       });
 
       if (!existingTopic) {
         await AssignTopics.create({
           user: id,
-          userType: 'Employee',
+          userType: 'Manager',
           topic: topic,
           isActive: true
         });
       }
     }
 
-    // Get all active topics for the employee
+    // Get all active topics for the manager
     const allTopics = await AssignTopics.find({
       user: id,
-      userType: 'Employee',
+      userType: 'Manager',
       isActive: true
     }).select('topic');
 
@@ -228,7 +207,7 @@ const addTagnamesToTheEmployee = async (req, res, next) => {
   }
 };
 
-const deleteTagnamesToTheEmployee = async (req, res) => {
+const deleteTagnamesToTheManager = async (req, res) => {
   const { id } = req.params;
   const { topic } = req.body;
 
@@ -237,19 +216,19 @@ const deleteTagnamesToTheEmployee = async (req, res) => {
   }
 
   try {
-    const updatedEmployee = await Employee.findByIdAndUpdate(
+    const updatedEmployee = await Manager.findByIdAndUpdate(
       id,
       { $pull: { topics: topic } },
       { new: true }
     );
 
     if (!updatedEmployee) {
-      return res.status(404).json({ error: "Employee not found." });
+      return res.status(404).json({ error: "Manager not found." });
     }
 
     return res.status(200).json({
       message: "Topic deleted successfully.",
-      employee: updatedEmployee,
+      Manager: updatedEmployee,
     });
   } catch (error) {
     console.error("Error deleting topic:", error);
@@ -259,23 +238,23 @@ const deleteTagnamesToTheEmployee = async (req, res) => {
   }
 };
 
-// digitalmeter assign constroller for employee
-const assignDigitalMeterToEmployee = async (req, res) => {
+// digitalmeter assign constroller for manager
+const assignDigitalMeterToManager = async (req, res) => {
   try {
     const { id } = req.params;
     const { assignedDigitalMeters } = req.body;
     
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ error: "Employee not found" });
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ error: "Manager not found" });
     }
 
     if (assignedDigitalMeters && Array.isArray(assignedDigitalMeters)) {
       for (const newMeter of assignedDigitalMeters) {
-        // Check if a meter with this topic already exists for this employee
+        // Check if a meter with this topic already exists for this manager
         const existingMeter = await AssignedDigitalMeter.findOne({
           user: id,
-          userType: 'Employee',
+          userType: 'Manager',
           topic: newMeter.topic
         });
 
@@ -293,7 +272,7 @@ const assignDigitalMeterToEmployee = async (req, res) => {
           // Create new meter assignment
           await AssignedDigitalMeter.create({
             user: id,
-            userType: 'Employee',
+            userType: 'Manager',
             topic: newMeter.topic,
             meterType: newMeter.meterType,
             minValue: newMeter.minValue,
@@ -305,10 +284,10 @@ const assignDigitalMeterToEmployee = async (req, res) => {
       }
     }
 
-    // Get all assigned meters for the employee
+    // Get all assigned meters for the manager
     const allMeters = await AssignedDigitalMeter.find({ 
       user: id, 
-      userType: 'Employee' 
+      userType: 'Manager' 
     });
     
     res.status(200).json({
@@ -316,25 +295,25 @@ const assignDigitalMeterToEmployee = async (req, res) => {
       data: allMeters
     });
   } catch (error) {
-    console.error("Error in assignDigitalMeterToEmployee:", error);
+    console.error("Error in assignDigitalMeterToManager:", error);
     res.status(400).json({ error: error.message });
   }
 };
 
-const assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
+const assignlayoutToManager = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { layoutName, layoutConfig } = req.body;
   
-  // Check if employee exists
-  const employee = await Employee.findById(id);
-  if (!employee) {
-    return next(new ErrorResponse("Employee not found", 404));
+  // Check if manager exists
+  const manager = await Manager.findById(id);
+  if (!manager) {
+    return next(new ErrorResponse("Manager not found", 404));
   }
 
-  // Check if layout already exists for this employee
+  // Check if layout already exists for this manager
   const existingLayout = await Layout.findOne({
     user: id,
-    userType: 'Employee'
+    userType: 'Manager'
   });
 
   if (existingLayout) {
@@ -348,7 +327,7 @@ const assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
     // Create new layout
     await Layout.create({
       user: id,
-      userType: 'Employee',
+      userType: 'Manager',
       layoutName: layoutName || 'default',
       layoutConfig: layoutConfig || {}
     });
@@ -357,60 +336,7 @@ const assignlayoutToEmployee = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: [] });
 });
 
-const addGraphWatchListEmployee = asyncHandler(async (req, res,next) => {
-    const { id } = req.params;
-    const { topic } = req.body;
-
-    if (!topic) {
-      return res.status(400).json({ message: "Topic is required" });
-    }
-
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
-
-    // Check current count of graph watch list items for this employee
-    const currentCount = await GraphWhiteList.countDocuments({
-      user: id,
-      userType: 'Employee',
-      isActive: true
-    });
-
-    if(currentCount >= 3){
-      return next(new ErrorResponse("Maximum limit reached!",400))
-    }
-
-    // Check if topic already exists for this employee
-    const existingTopic = await GraphWhiteList.findOne({
-      user: id,
-      userType: 'Employee',
-      topic: topic
-    });
-
-    if (!existingTopic) {
-      await GraphWhiteList.create({
-        user: id,
-        userType: 'Employee',
-        topic: topic,
-        isActive: true
-      });
-    }
-
-    // Get all active graph watch list items for the employee
-    const allTopics = await GraphWhiteList.find({
-      user: id,
-      userType: 'Employee',
-      isActive: true
-    }).select('topic');
-
-    res.status(200).json({
-      message: "Topic added to graphwl",
-      graphwl: allTopics.map(item => item.topic),
-    });
-});
-
-const removeGraphWatchListEmployee = async (req, res) => {
+const addGraphWatchListManager = async (req, res) => {
   try {
     const { id } = req.params;
     const { topic } = req.body;
@@ -419,20 +345,80 @@ const removeGraphWatchListEmployee = async (req, res) => {
       return res.status(400).json({ message: "Topic is required" });
     }
 
-    const employee = await Employee.findById(id);
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ message: "Manager not found" });
     }
 
-    const index = employee.graphwl.indexOf(topic);
+    // Check current count of graph watch list items for this manager
+    const currentCount = await GraphWhiteList.countDocuments({
+      user: id,
+      userType: 'Manager',
+      isActive: true
+    });
+
+    if(currentCount >= 3){
+      return next(new ErrorResponse("Maximum limit reached!",400))
+    }
+
+    // Check if topic already exists for this manager
+    const existingTopic = await GraphWhiteList.findOne({
+      user: id,
+      userType: 'Manager',
+      topic: topic
+    });
+
+    if (!existingTopic) {
+      await GraphWhiteList.create({
+        user: id,
+        userType: 'Manager',
+        topic: topic,
+        isActive: true
+      });
+    }
+
+    // Get all active graph watch list items for the manager
+    const allTopics = await GraphWhiteList.find({
+      user: id,
+      userType: 'Manager',
+      isActive: true
+    }).select('topic');
+
+    res.status(200).json({
+      message: "Topic added to graphwl",
+      graphwl: allTopics.map(item => item.topic),
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error adding graphwl",
+      error: error.message,
+    });
+  }
+};
+
+const removeGraphWatchListManager = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { topic } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({ message: "Topic is required" });
+    }
+
+    const manager = await Manager.findById(id);
+    if (!manager) {
+      return res.status(404).json({ message: "Manager not found" });
+    }
+
+    const index = manager.graphwl.indexOf(topic);
     if (index !== -1) {
-      employee.graphwl.splice(index, 1);
-      await employee.save();
+      manager.graphwl.splice(index, 1);
+      await manager.save();
     }
 
     res.status(200).json({
       message: "Topic removed from graphwl",
-      graphwl: employee.graphwl,
+      graphwl: manager.graphwl,
     });
   } catch (error) {
     res
@@ -441,25 +427,15 @@ const removeGraphWatchListEmployee = async (req, res) => {
   }
 };
 
-const subscribeToEmployeeTopic = asyncHandler(async (req, res, next) => {
-  await subscribeToDevice(req.body, req.body.mqttTopic);
-  res.status(200).json({
-    success: true,
-    data: [],
-  });
-});
-
 module.exports = {
-  loginAsManager,
-  getSinlgeManager,
-  getAllOperatorsForManager,
-  addFavoriteEmployee,
-  removeFavoriteEmployee,
-  addTagnamesToTheEmployee,
-  deleteTagnamesToTheEmployee,
-  assignDigitalMeterToEmployee,
-  assignlayoutToEmployee,
-  addGraphWatchListEmployee,
-  removeGraphWatchListEmployee,
-  subscribeToEmployeeTopic,
+  loginAsEmployee,
+  getSinlgeEmployee,
+  addFavoriteManager,
+  removeFavoriteManager,
+  addTagnamesToTheManager,
+  deleteTagnamesToTheManager,
+  assignDigitalMeterToManager,
+  assignlayoutToManager,
+  addGraphWatchListManager,
+  removeGraphWatchListManager,
 };
