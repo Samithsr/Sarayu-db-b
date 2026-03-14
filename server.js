@@ -9,6 +9,7 @@ const errorHandler = require("./middlewares/error");
 const dotenv = require("dotenv");
 const { sessionConfig } = require("./middlewares/session");
 const authRoute = require("./routers/auth-router");
+const mainRoute = require("./routers/main-router");
 const supportmailRoute = require("./routers/supportmail-router");
 const mqttRoutes = require("./routers/mqttRoutes");
 const backupdbRoute = require("./src/backup/backupRoute");
@@ -70,6 +71,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/v1/auth", authRoute);
+app.use("/api/v1", mainRoute);
 app.use("/api/v1/supportmail", supportmailRoute);
 app.use("/api/v1/mqtt", mqttRoutes);
 app.use("/api/v1/backupdb", backupdbRoute);

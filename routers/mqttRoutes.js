@@ -1087,7 +1087,8 @@ router.post("/add", async (req, res) => {
     }
 
     const rawTopic = decodeURIComponent(topic);
-    // Normalize thresholds: ensure numeric values and a resetValue is present
+    
+    // Process thresholds: filter valid colors and ensure numeric values
     const processed = thresholds
       .filter(t => t && (t.value !== undefined) && (t.color === "orange" || t.color === "red"))
       .map(t => ({
@@ -1095,30 +1096,24 @@ router.post("/add", async (req, res) => {
         value: Number(t.value),
         resetValue: (t.resetValue !== undefined) ? Number(t.resetValue) : Number(t.value)
       }))
-      // sort ascending by value so frontend logic can assume order if needed
+      // Remove duplicates for same color - keep only the latest value
+      .filter((threshold, index, self) => 
+        index === self.findIndex(t => t.color === threshold.color)
+      )
       .sort((a, b) => a.value - b.value);
 
+    // When thresholds array is empty, clear all thresholds
+    // When thresholds array has 1 or 2 values, set only those (clearing others automatically)
     await updateThresholds(rawTopic, processed);
 
-    // No explicit Redis cache keys exist for thresholds here; mqttHandler will clear its own cache
-    return res.status(200).json({ success: true, data: { thresholds: processed } });
+    return res.status(200).json({ 
+      success: true, 
+      message: processed.length === 0 ? "All thresholds cleared" : `Thresholds updated: ${processed.map(t => t.color).join(', ')}`,
+      data: { thresholds: processed } 
+    });
   } catch (error) {
     console.error("Error updating thresholds:", error.message);
     return res.status(500).json({ success: false, message: "Internal server error" });
-  }
-});
-
-router.get("/get", async (req, res) => {
-  try {
-    const { topic } = req.query;
-    if (!topic) return res.status(400).json({ error: "Topic name is required" });
-
-    const topicData = await AllTopicsModel.findOne({ topic }).lean();
-    if (!topicData) return res.status(404).json({ error: "Topic not found" });
-
-    res.status(200).json({ data: topicData });
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
 

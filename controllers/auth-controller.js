@@ -6,6 +6,34 @@ const SubscribedTopic = require("../src/models/subscribed-topic-model");
 const ConfigDevice = require("../src/models/config-device");
 const logger = require("../middlewares/logger");
 
+const signup = asyncHandler(async (req, res, next) => {
+  const { name, email, password, role } = req.body;
+  
+  // Check if user already exists
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new ErrorResponse("User already exists with this email", 400));
+  }
+  
+  // Create new user
+  const user = await User.create({
+    name,
+    email,
+    password,
+    role: role || 'employee'
+  });
+  
+  res.status(201).json({
+    success: true,
+    message: "User created successfully",
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    }
+  });
+});
 
 const login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
@@ -179,6 +207,7 @@ module.exports = {
   getAllUserTopics,
   login,
   logout,
+  signup,
   subscribedTopics,
   getSubscribedTopics,
   addDeviceConfig,
